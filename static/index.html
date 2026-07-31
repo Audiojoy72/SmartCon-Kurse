@@ -10,13 +10,124 @@
 <header>
   <h1>SmartCon-Schulungen</h1>
   <nav>
-    <button id="tab-ampel" class="tab aktiv" data-tab="ampel">System-Check</button>
+    <button id="tab-projekte" class="tab aktiv" data-tab="projekte">Projekte</button>
+    <button id="tab-ampel" class="tab" data-tab="ampel">System-Check</button>
     <button id="tab-settings" class="tab" data-tab="settings">Einstellungen</button>
   </nav>
 </header>
 
 <main>
-  <section id="view-ampel" class="view aktiv">
+  <section id="view-projekte" class="view aktiv">
+    <!-- Projektliste -->
+    <div id="pv-liste">
+      <div class="view-kopf">
+        <h2>Projekte</h2>
+        <button id="btn-neu">Neue Schulung</button>
+      </div>
+      <div id="projekt-liste"></div>
+    </div>
+
+    <!-- Neues-Projekt-Formular -->
+    <div id="pv-formular" hidden>
+      <div class="view-kopf">
+        <h2>Neue Schulung</h2>
+        <button id="btn-form-zurueck">Zurück</button>
+      </div>
+      <form id="projekt-form">
+        <label>Thema *
+          <input name="thema" type="text" required
+                 placeholder="z. B. Passwort-Hygiene im Team">
+        </label>
+        <label>Lernziele *
+          <textarea name="lernziele" rows="3" required
+                    placeholder="Was sollen die Lernenden danach können bzw. anders machen?"></textarea>
+        </label>
+        <label>Zielgruppe *
+          <select name="zielgruppe" required>
+            <option value="Mitarbeitende">Mitarbeitende</option>
+            <option value="Coaching-Klienten">Coaching-Klienten</option>
+            <option value="Kunden-Team">Kunden-Team</option>
+            <option value="Schüler:innen">Schüler:innen</option>
+            <option value="Kurskäufer">Kurskäufer</option>
+          </select>
+        </label>
+        <label>Vorwissen (optional)
+          <input name="vorwissen" type="text"
+                 placeholder="z. B. Einsteiger, gemischt, Fortgeschrittene …">
+        </label>
+        <label>Sprache *
+          <select name="sprache_select" required>
+            <option value="Deutsch">Deutsch</option>
+            <option value="Englisch">Englisch</option>
+            <option value="">andere (Freitext)</option>
+          </select>
+        </label>
+        <label id="sprache-frei-wrap" hidden>Sprache (Freitext)
+          <input name="sprache_frei" type="text" placeholder="z. B. Französisch">
+        </label>
+        <label>Dauer *
+          <select name="dauer" required>
+            <option value="~10–15 Min (Kompakt-Lektion)">~10–15 Min (Kompakt-Lektion)</option>
+            <option value="~20–30 Min (Standard-Modul)">~20–30 Min (Standard-Modul)</option>
+            <option value="~30–45 Min (volle Schulung)">~30–45 Min (volle Schulung)</option>
+            <option value="60+ Min (Kurs)">60+ Min (Kurs)</option>
+          </select>
+        </label>
+        <fieldset>
+          <legend>Stil *</legend>
+          <div id="preset-karten" class="preset-karten">
+            <p class="muted">Lade Presets …</p>
+          </div>
+          <label id="design-upload-wrap" class="design-upload" hidden>eigene design.md hochladen
+            <input name="design_md" type="file" accept=".md,text/markdown">
+          </label>
+        </fieldset>
+        <label>Material hochladen (optional, mehrere Dateien möglich)
+          <input name="material" type="file" multiple>
+        </label>
+        <label>Vorhandenes Material / Hinweise (optional)
+          <textarea name="material_hinweise" rows="2"
+                    placeholder="z. B. interne Richtlinie vom März, Folien aus der letzten Schulung …"></textarea>
+        </label>
+        <button type="submit">Projekt anlegen</button>
+        <span id="projekt-form-status" class="muted"></span>
+      </form>
+    </div>
+
+    <!-- Projekt-Detail -->
+    <div id="pv-detail" hidden>
+      <div class="view-kopf">
+        <h2 id="detail-titel">Projekt</h2>
+        <button id="btn-detail-zurueck">Zurück zur Liste</button>
+      </div>
+      <p class="statuszeile">
+        <span id="detail-badge" class="badge"></span>
+        <span id="detail-meta" class="muted"></span>
+      </p>
+      <div class="aktionen">
+        <button id="btn-curriculum-start">Curriculum erzeugen</button>
+        <span id="detail-hinweis" class="muted"></span>
+      </div>
+      <h3>Fortschritt</h3>
+      <div id="lauf-log" class="log"><p class="muted">Noch kein Lauf gestartet.</p></div>
+      <h3>Curriculum (curriculum.md)</h3>
+      <textarea id="curriculum-editor" rows="18" class="editor" spellcheck="false"
+                placeholder="Noch kein Curriculum vorhanden — zuerst „Curriculum erzeugen“ starten."></textarea>
+      <div class="aktionen">
+        <button id="btn-curriculum-save">Speichern</button>
+        <span id="curriculum-save-status" class="muted"></span>
+      </div>
+      <h3>Änderungswunsch an den Agenten</h3>
+      <textarea id="kommentar-box" rows="3"
+                placeholder="z. B. „Level 2 kürzen, dafür ein Quiz zum Thema Passwort-Manager ergänzen“"></textarea>
+      <div class="aktionen">
+        <button id="btn-kommentar-send">An den Agenten senden</button>
+        <span id="kommentar-status" class="muted"></span>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-ampel" class="view">
     <div class="view-kopf">
       <h2>System-Check</h2>
       <button id="btn-recheck">Erneut prüfen</button>

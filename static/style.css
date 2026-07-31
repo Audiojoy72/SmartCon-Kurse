@@ -147,6 +147,130 @@ legend { padding: 0 .5rem; color: var(--muted); font-size: .9rem; }
 .zeile input { margin-top: 0; flex: 1; }
 .zeile button { white-space: nowrap; }
 
+/* --- Projekte --- */
+
+.projekt-karte {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  margin-bottom: .7rem;
+  cursor: pointer;
+}
+.projekt-karte:hover { border-color: var(--muted); }
+.pk-titel { font-weight: 600; margin-bottom: .3rem; }
+.pk-meta { display: flex; align-items: center; gap: .6rem; font-size: .85rem; }
+
+.badge {
+  display: inline-block;
+  padding: .15rem .6rem;
+  border-radius: 999px;
+  font-size: .8rem;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.badge.phase-briefing { color: var(--muted); }
+.badge.phase-curriculum_laeuft { color: var(--warn); border-color: var(--warn); }
+.badge.phase-curriculum_fertig { color: var(--ok); border-color: var(--ok); }
+.badge.phase-fehler { color: var(--fail); border-color: var(--fail); }
+
+.statuszeile { display: flex; align-items: center; gap: .6rem; }
+
+.aktionen {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  margin: .8rem 0 1.2rem;
+}
+
+.preset-karten {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: .7rem;
+  margin-bottom: 1rem;
+}
+.preset-karte {
+  display: block;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: .8rem .9rem;
+  cursor: pointer;
+  font-weight: 400;
+  margin-bottom: 0;
+}
+.preset-karte:has(input:checked) { border-color: var(--text); }
+.preset-karte input { width: auto; display: inline; margin: 0 .4rem 0 0; }
+.preset-karte .pk-name { font-weight: 600; }
+.preset-karte .pk-beschr {
+  display: block;
+  color: var(--muted);
+  font-size: .82rem;
+  margin-top: .3rem;
+}
+.preset-karte .pk-kosten {
+  display: block;
+  color: var(--warn);
+  font-size: .82rem;
+  margin-top: .3rem;
+}
+
+.log {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: .8rem 1rem;
+  max-height: 320px;
+  overflow-y: auto;
+  font-size: .88rem;
+  line-height: 1.5;
+  margin-bottom: 1.2rem;
+}
+.log div { margin-bottom: .5rem; }
+.log .log-status { color: var(--warn); }
+.log .log-tool { color: var(--muted); font-size: .82rem; }
+.log .log-fertig { color: var(--ok); }
+.log .log-fehler { color: var(--fail); }
+
+textarea.editor {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .85rem;
+  line-height: 1.5;
+  padding: .8rem 1rem;
+  resize: vertical;
+}
+
+form textarea {
+  display: block;
+  width: 100%;
+  margin-top: .35rem;
+  padding: .55rem .7rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  font-weight: 400;
+}
+
+#kommentar-box {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  padding: .55rem .7rem;
+  resize: vertical;
+}
+
+h3 { margin: 1.4rem 0 .6rem; font-size: 1rem; }
+
 footer {
   padding: 1rem 2rem;
   border-top: 1px solid var(--line);
