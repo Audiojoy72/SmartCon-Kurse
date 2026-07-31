@@ -106,6 +106,17 @@ form input, form select {
   font-weight: 400;
 }
 
+form label.checkbox {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  font-weight: 400;
+}
+form label.checkbox input {
+  width: auto;
+  margin-top: 0;
+}
+
 footer {
   padding: 1rem 2rem;
   border-top: 1px solid var(--line);

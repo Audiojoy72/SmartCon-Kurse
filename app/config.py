@@ -11,6 +11,7 @@ DEFAULTS = {
     "default_design_md": "",       # Pfad zu einer design.md, leer = Preset-Default
     "whisper_command": "whisper",  # lokale Transkription
     "port": 8710,
+    "lan_erreichbar": True,        # True = im LAN erreichbar (0.0.0.0), False = nur localhost
 }
 
 

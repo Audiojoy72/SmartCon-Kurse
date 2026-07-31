@@ -41,6 +41,7 @@ async function ladeSettings() {
   form.backend.value = cfg.backend;
   form.default_design_md.value = cfg.default_design_md;
   form.whisper_command.value = cfg.whisper_command;
+  form.lan_erreichbar.checked = !!cfg.lan_erreichbar;
 }
 
 document.getElementById("settings-form").addEventListener("submit", async (e) => {
@@ -50,6 +51,7 @@ document.getElementById("settings-form").addEventListener("submit", async (e) =>
     backend: form.backend.value,
     default_design_md: form.default_design_md.value.trim(),
     whisper_command: form.whisper_command.value.trim() || "whisper",
+    lan_erreichbar: form.lan_erreichbar.checked,
   };
   await fetch("/api/config", {
     method: "POST",
@@ -57,8 +59,8 @@ document.getElementById("settings-form").addEventListener("submit", async (e) =>
     body: JSON.stringify(cfg),
   });
   const s = document.getElementById("settings-status");
-  s.textContent = "Gespeichert.";
-  setTimeout(() => (s.textContent = ""), 2500);
+  s.textContent = "Gespeichert. (LAN-Erreichbarkeit greift nach Neustart der App.)";
+  setTimeout(() => (s.textContent = ""), 4000);
   ladeAmpel();
 });
 

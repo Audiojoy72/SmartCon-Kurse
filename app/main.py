@@ -45,7 +45,8 @@ def main():
     import uvicorn
 
     cfg = config.load()
-    uvicorn.run(app, host="127.0.0.1", port=cfg["port"])
+    host = "0.0.0.0" if cfg.get("lan_erreichbar") else "127.0.0.1"
+    uvicorn.run(app, host=host, port=cfg["port"])
 
 
 if __name__ == "__main__":
