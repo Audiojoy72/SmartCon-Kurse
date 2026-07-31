@@ -20,11 +20,18 @@ async function ladeAmpel() {
     liste.innerHTML = "";
     for (const c of data.checks) {
       const li = document.createElement("li");
+      if (c.anleitung) li.classList.add("aufklappbar");
       const hint = c.hint ? `<span class="hint">→ ${c.hint}</span>` : "";
       li.innerHTML =
         `<span class="punkt ${c.status}"></span>` +
-        `<span><span class="name">${c.name}</span><br>` +
-        `<span class="detail">${c.detail || ""}</span>${hint}</span>`;
+        `<span class="inhalt"><span class="name">${c.name}</span><br>` +
+        `<span class="detail">${c.detail || ""}</span>${hint}` +
+        (c.anleitung ? `<pre class="anleitung">${c.anleitung}</pre>` : "") +
+        `</span>`;
+      if (c.anleitung) {
+        li.title = "Anklicken für die Anleitung";
+        li.addEventListener("click", () => li.classList.toggle("offen"));
+      }
       liste.appendChild(li);
     }
   } catch (e) {

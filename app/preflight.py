@@ -1,7 +1,9 @@
 """Preflight-Prüfung: alle externen Abhängigkeiten, als Ampel für das UI.
 
-Jeder Check liefert {id, name, status, detail, hint}.
+Jeder Check liefert {id, name, status, detail, hint, anleitung}.
 status: "ok" | "warn" (optional, fehlt) | "fail" (Pflicht, fehlt)
+anleitung: mehrzeilige Installations-/Reparatur-Schritte, wird im UI per Klick
+auf die Kachel aufgeklappt.
 """
 
 import shutil
@@ -11,6 +13,64 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 TIMEOUT = 20
+
+ANLEITUNG = {
+    "claude": """\
+1. Installieren:  curl -fsSL https://claude.ai/install.sh | bash
+   (alternativ: npm i -g @anthropic-ai/claude-code)
+2. Anmelden:  claude
+   — beim ersten Start öffnet sich der Login im Browser.
+3. Prüfen:  claude --version""",
+    "kimi": """\
+1. Installieren:  curl -fsSL https://code.kimi.com/install.sh | bash
+2. Anmelden:  kimi
+   — beim ersten Start läuft der Login durch.
+3. Prüfen:  kimi --version""",
+    "higgsfield": """\
+1. Installieren:  npm i -g higgsfield
+2. Anmelden:  higgsfield auth login
+3. Workspace setzen (wird oft vergessen):
+   higgsfield workspace list
+   higgsfield workspace set <id>
+   Ohne Workspace antwortet jeder Aufruf mit „No workspace selected".
+4. Guthaben prüfen:  higgsfield account status""",
+    "hf_auth": """\
+Anmelden:  higgsfield auth login
+Danach prüfen:  higgsfield account status""",
+    "hf_ws": """\
+1. Verfügbare Workspaces anzeigen:  higgsfield workspace list
+2. Workspace wählen:  higgsfield workspace set <id>
+3. Prüfen:  higgsfield workspace status""",
+    "ffmpeg": """\
+Debian/Ubuntu:  sudo apt install ffmpeg
+macOS:          brew install ffmpeg
+Prüfen:         ffmpeg -version""",
+    "whisper": """\
+Lokal (CPU, langsam aber ohne fremde Infrastruktur):
+  python3 -m venv ~/.venv-whisper
+  ~/.venv-whisper/bin/pip install openai-whisper
+  — dann in den Einstellungen als Whisper-Befehl eintragen:
+  ~/.venv-whisper/bin/whisper
+
+Schneller: ein eigener GPU-Transkriptionsdienst (OpenAI-kompatibel,
+verbose_json mit Wort-Zeitstempeln). Der Skill nutzt dafür die
+Umgebungsvariable WHISPER_REMOTE_CMD — siehe skill/schulung/scripts/transkribieren.sh.
+Wichtig: Der Skill braucht WORT-Zeitstempel, Segment-Granularität reicht nicht.""",
+    "node22": """\
+Nur nötig für gerenderte Erklär-Videos (HyperFrames); HTML-Szenen laufen ohne.
+  nvm install 22
+Nicht „nvm use" dauerhaft umstellen — der Wrapper skill/schulung/scripts/hyperframes.sh
+sucht sich die 22er-Laufzeit selbst.""",
+    "skill": """\
+Der Skill gehört ins Repo: skill/schulung/SKILL.md
+Wenn er fehlt, ist die Installation unvollständig — Repo neu klonen oder
+den Stand aus dem Git-Verlauf wiederherstellen:
+  git checkout -- skill/""",
+    "design": """\
+Der hinterlegte Pfad zur design.md existiert nicht.
+Entweder den Pfad in den Einstellungen korrigieren oder die Datei anlegen —
+Vorlage zum Ausfüllen: skill/schulung/reference/design-vorlage.md""",
+}
 
 
 def _run(cmd: list[str]) -> tuple[bool, str]:
@@ -24,16 +84,14 @@ def _run(cmd: list[str]) -> tuple[bool, str]:
 
 def _check_binary(check_id: str, name: str, cmd: list[str], pflicht: bool,
                   hint: str) -> dict:
+    base = {"id": check_id, "name": name, "anleitung": ANLEITUNG.get(check_id, "")}
     if not shutil.which(cmd[0]):
-        return {"id": check_id, "name": name,
-                "status": "fail" if pflicht else "warn",
+        return {**base, "status": "fail" if pflicht else "warn",
                 "detail": "nicht gefunden", "hint": hint}
     ok, first = _run(cmd)
     if ok:
-        return {"id": check_id, "name": name, "status": "ok",
-                "detail": first, "hint": ""}
-    return {"id": check_id, "name": name,
-            "status": "fail" if pflicht else "warn",
+        return {**base, "status": "ok", "detail": first, "hint": ""}
+    return {**base, "status": "fail" if pflicht else "warn",
             "detail": first or "Aufruf fehlgeschlagen", "hint": hint}
 
 
@@ -43,7 +101,7 @@ def run_all(cfg: dict) -> list[dict]:
     checks.append(_check_binary(
         "claude", "Claude-Code-CLI (primäres Backend)", ["claude", "--version"],
         pflicht=cfg["backend"] == "claude",
-        hint="Claude Code installieren und anmelden: https://claude.ai/code"))
+        hint="Claude Code installieren und anmelden"))
 
     checks.append(_check_binary(
         "kimi", "Kimi-CLI (Fallback-Backend)", ["kimi", "--version"],
@@ -60,11 +118,13 @@ def run_all(cfg: dict) -> list[dict]:
         ok, first = _run(["higgsfield", "account", "status"])
         checks.append({"id": "hf_auth", "name": "Higgsfield-Anmeldung & Guthaben",
                        "status": "ok" if ok else "fail", "detail": first,
-                       "hint": "" if ok else "higgsfield auth login"})
+                       "hint": "" if ok else "higgsfield auth login",
+                       "anleitung": ANLEITUNG["hf_auth"]})
         ok, first = _run(["higgsfield", "workspace", "status"])
         checks.append({"id": "hf_ws", "name": "Higgsfield-Workspace",
                        "status": "ok" if ok else "fail", "detail": first,
-                       "hint": "" if ok else "higgsfield workspace set <id>"})
+                       "hint": "" if ok else "higgsfield workspace set <id>",
+                       "anleitung": ANLEITUNG["hf_ws"]})
 
     checks.append(_check_binary(
         "ffmpeg", "ffmpeg", ["ffmpeg", "-version"], pflicht=True,
@@ -73,8 +133,7 @@ def run_all(cfg: dict) -> list[dict]:
     checks.append(_check_binary(
         "whisper", "Whisper (lokale Transkription)", [cfg["whisper_command"], "--help"],
         pflicht=False,
-        hint="pip install openai-whisper — oder einen eigenen Transkriptionsbefehl "
-             "in den Einstellungen hinterlegen"))
+        hint="lokal installieren oder Remote-Befehl hinterlegen — Kachel anklicken"))
 
     # Node 22+ für HyperFrames (optional): unter nvm suchen
     nvm_dir = Path.home() / ".nvm" / "versions" / "node"
@@ -91,8 +150,8 @@ def run_all(cfg: dict) -> list[dict]:
     checks.append({"id": "node22", "name": "Node 22+ (HyperFrames, optional)",
                    "status": "ok" if node22 else "warn",
                    "detail": node22 or "nicht gefunden",
-                   "hint": "" if node22 else "nvm install 22 — nur nötig für "
-                                             "gerenderte Erklär-Videos"})
+                   "hint": "" if node22 else "nvm install 22",
+                   "anleitung": ANLEITUNG["node22"]})
 
     # Neutraler Skill im Repo?
     skill_md = ROOT / "skill" / "schulung" / "SKILL.md"
@@ -101,7 +160,8 @@ def run_all(cfg: dict) -> list[dict]:
                    "detail": str(skill_md.relative_to(ROOT)) if skill_md.exists()
                              else "fehlt",
                    "hint": "" if skill_md.exists()
-                           else "skill/schulung/SKILL.md fehlt im Repo"})
+                           else "skill/schulung/SKILL.md fehlt im Repo",
+                   "anleitung": ANLEITUNG["skill"]})
 
     # design.md (optional)
     design = cfg.get("default_design_md", "").strip()
@@ -110,10 +170,11 @@ def run_all(cfg: dict) -> list[dict]:
         checks.append({"id": "design", "name": "Default-design.md",
                        "status": "ok" if ok else "warn",
                        "detail": design if ok else f"nicht gefunden: {design}",
-                       "hint": "" if ok else "Pfad in den Einstellungen korrigieren"})
+                       "hint": "" if ok else "Pfad in den Einstellungen korrigieren",
+                       "anleitung": ANLEITUNG["design"]})
 
     checks.append({"id": "python", "name": "Python",
                    "status": "ok",
-                   "detail": sys.version.split()[0], "hint": ""})
+                   "detail": sys.version.split()[0], "hint": "", "anleitung": ""})
 
     return checks
