@@ -1,0 +1,171 @@
+/* Theme der interaktiven Lerneinheit — Tokens des Presets "cinematic" (Default).
+ * Wird in die erzeugte HTML-Datei inline kopiert (sie muss offline per Doppelklick laufen).
+ * Farben und Groessen nicht im Dokument ueberschreiben, sondern hier aendern —
+ * Paletten und Kontrastwerte in reference/styles/cinematic.md.
+ *
+ * Anderes Preset oder design.md: nur die Tokens im :root austauschen, danach
+ *   python3 scripts/kontrast.py "<akzent>" "<panel>"   (muss >= 4.5 liefern). */
+
+:root {
+  --navy:   #060611;  /* Seitenhintergrund */
+  --panel:  #101120;  /* Karten, Quiz-Optionen, Video-Rahmen */
+  --panel2: #17182B;  /* alternative Karten, Hover */
+  --steel:  #22243A;  /* Chips, Balken-Spur, inaktive Badges */
+  --gold:   #C9A84C;  /* DER Akzent */
+  --goldlt: #E6CF8A;  /* Zwischenueberschriften, Hover */
+  --ink:    #F5F3EC;  /* Text */
+  --mute:   #989AB2;  /* Unterzeilen, Hilfetexte */
+  --line:   #3A3A52;  /* Rahmen, Trennlinien */
+  --wrong:  #D97A67;  /* nur falsche Antworten, nie Deko */
+
+  --radius: 10px;
+  --maxw:   900px;    /* Lesebreite; Video laeuft darin ~880 px */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--navy);
+  color: var(--ink);
+  /* Der Font meldet sich bei fontconfig als "Inter Variable"; "Inter" allein landet
+   * auf DejaVu Sans. Die Kette dahinter haelt die Datei auf fremden Rechnern lesbar. */
+  font-family: "Inter Variable", "Inter", system-ui, Arial, sans-serif;
+  font-size: 18px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --------------------------------------------------------------- Kopfzeile */
+
+.kopf {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 24px;
+  background: var(--navy);
+  border-bottom: 1px solid var(--line);
+}
+.kopf .logo { height: 34px; width: auto; }
+.kopf .wortmarke {
+  font-size: 14px; font-weight: 700; letter-spacing: .18em;
+  color: var(--ink); text-transform: uppercase;
+}
+.kopf .rechts { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+.badge {                      /* Level-Marke, inaktiv */
+  width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--steel); color: var(--mute);
+  font-size: 14px; font-weight: 700;
+}
+.badge.erledigt { background: var(--gold); color: var(--navy); }
+.badge.aktiv    { background: transparent; color: var(--gold); border: 2px solid var(--gold); }
+
+.xp { font-size: 14px; font-weight: 700; color: var(--gold); white-space: nowrap; }
+
+.fortschritt { height: 4px; background: var(--steel); }
+.fortschritt > i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .4s ease; }
+
+/* ------------------------------------------------------------------ Screens */
+
+.screen { display: none; max-width: var(--maxw); margin: 0 auto; padding: 40px 24px 80px; }
+.screen.active { display: block; }
+
+h1 { font-size: 40px; font-weight: 700; line-height: 1.15; }
+h2 { font-size: 30px; font-weight: 700; line-height: 1.2; }
+h3 { font-size: 21px; font-weight: 700; color: var(--goldlt); }
+p  { margin: 14px 0; }
+.lead  { color: var(--mute); font-size: 15px; }
+.kicker { color: var(--gold); font-size: 14px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+
+.merksatz {
+  margin: 28px 0; padding: 20px 24px;
+  background: var(--panel); border-left: 3px solid var(--gold); border-radius: var(--radius);
+  font-size: 24px; font-weight: 700; line-height: 1.35;
+}
+
+/* ------------------------------------------------------------------- Medien */
+
+video, .bild {
+  width: 100%; border-radius: var(--radius);
+  background: var(--panel); border: 1px solid var(--line);
+  display: block;
+}
+.tonhinweis { color: var(--mute); font-size: 15px; margin-top: 10px; }
+
+/* ------------------------------------------------------------------ Buttons */
+
+.btn {
+  appearance: none; border: 0; cursor: pointer;
+  padding: 13px 26px; border-radius: var(--radius);
+  background: var(--gold); color: var(--navy);
+  font: inherit; font-weight: 700;
+  transition: background .2s ease;
+}
+.btn:hover  { background: var(--goldlt); }
+.btn:focus-visible { outline: 3px solid var(--goldlt); outline-offset: 3px; }
+.btn[disabled] { background: var(--steel); color: var(--mute); cursor: not-allowed; }
+.btn.sekundaer { background: transparent; color: var(--gold); border: 1px solid var(--gold); }
+
+@keyframes pulsieren { 0%,100% { transform: scale(1); } 50% { transform: scale(1.045); } }
+.btn.pulsiert { animation: pulsieren 1.6s ease-in-out infinite; }
+
+/* --------------------------------------------------------------- Interaktion */
+
+.optionen { display: grid; gap: 12px; margin: 24px 0; }
+
+.option {
+  text-align: left; cursor: pointer;
+  padding: 16px 18px; border-radius: var(--radius);
+  background: var(--panel); border: 1px solid var(--line); color: var(--ink);
+  font: inherit;
+  transition: background .15s ease, border-color .15s ease;
+}
+.option:hover { background: var(--panel2); border-color: var(--gold); }
+.option:focus-visible { outline: 3px solid var(--goldlt); outline-offset: 2px; }
+
+/* Rueckmeldung nie allein ueber Farbe — das Zeichen kommt aus ::before dazu. */
+.option.richtig { border-color: var(--gold);  color: var(--gold); }
+.option.falsch  { border-color: var(--wrong); color: var(--wrong); }
+.option.richtig::before { content: "✓ "; font-weight: 700; }
+.option.falsch::before  { content: "✕ "; font-weight: 700; }
+.option[disabled] { cursor: default; }
+
+.feedback { margin-top: 16px; padding: 16px 18px; border-radius: var(--radius); background: var(--panel2); }
+.feedback.richtig { border-left: 3px solid var(--gold); }
+.feedback.falsch  { border-left: 3px solid var(--wrong); }
+
+.karte { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+.chip  { display: inline-block; padding: 5px 12px; border-radius: 999px;
+         background: var(--steel); color: var(--mute); font-size: 14px; }
+
+/* ------------------------------------------------------------- Guide-Figur */
+
+/* Preset "cinematic": leuchtender Orb. Bei anderer Akzentfarbe (design.md) Verlauf
+ * und Schatten-Farben entsprechend ableiten. */
+.orb {
+  width: 120px; height: 120px; border-radius: 50%;
+  background: radial-gradient(circle at 38% 34%, #F2DFA6 0%, var(--gold) 45%, #8A6D1F 100%);
+  box-shadow: 0 0 60px rgba(201,168,76,.45), 0 0 140px rgba(201,168,76,.18);
+}
+
+/* --------------------------------------------------------------- Abschluss */
+
+.fusszeile {
+  margin-top: 48px; padding-top: 18px;
+  border-top: 2px solid var(--gold);
+  color: var(--mute); font-size: 14px;
+}
+
+/* ------------------------------------------------------- Merkblatt drucken */
+
+@media print {
+  body { background: #fff; color: #1a1a22; font-size: 12pt; }
+  .kopf, .fortschritt, .btn, video, .option, .screen:not(.active) { display: none !important; }
+  .screen.active { display: block; max-width: none; padding: 0; }
+  .merksatz { background: none; border-left: 3px solid #8A6D1F; page-break-inside: avoid; }
+  .fusszeile { border-top-color: #8A6D1F; color: #555; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
