@@ -135,6 +135,18 @@ form label.checkbox input {
   margin-top: 0;
 }
 
+fieldset {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1rem 1.2rem 0;
+  margin: 0 0 1.2rem;
+}
+legend { padding: 0 .5rem; color: var(--muted); font-size: .9rem; }
+
+.zeile { display: flex; gap: .5rem; margin-top: .35rem; }
+.zeile input { margin-top: 0; flex: 1; }
+.zeile button { white-space: nowrap; }
+
 footer {
   padding: 1rem 2rem;
   border-top: 1px solid var(--line);

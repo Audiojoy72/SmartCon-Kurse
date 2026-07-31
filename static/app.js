@@ -47,9 +47,28 @@ async function ladeSettings() {
   const form = document.getElementById("settings-form");
   form.backend.value = cfg.backend;
   form.default_design_md.value = cfg.default_design_md;
+  form.whisper_modus.value = cfg.whisper_modus || "lokal";
   form.whisper_command.value = cfg.whisper_command;
+  form.whisper_api_url.value = cfg.whisper_api_url || "";
+  form.whisper_api_key.value = cfg.whisper_api_key || "";
+  form.whisper_api_model.value = cfg.whisper_api_model || "whisper-1";
+  form.cf_access_client_id.value = cfg.cf_access_client_id || "";
+  form.cf_access_client_secret.value = cfg.cf_access_client_secret || "";
   form.lan_erreichbar.checked = !!cfg.lan_erreichbar;
+  whisperSichtbarkeit();
 }
+
+function whisperSichtbarkeit() {
+  const modus = document.querySelector('[name="whisper_modus"]').value;
+  document.querySelectorAll(".whisper-lokal").forEach(
+    (el) => (el.style.display = modus === "lokal" ? "" : "none"));
+  document.querySelectorAll(".whisper-api").forEach(
+    (el) => (el.style.display = modus === "api" ? "" : "none"));
+}
+document.querySelector('[name="whisper_modus"]').addEventListener("change", whisperSichtbarkeit);
+document.getElementById("btn-openrouter").addEventListener("click", () => {
+  document.querySelector('[name="whisper_api_url"]').value = "https://openrouter.ai/api/v1";
+});
 
 document.getElementById("settings-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -57,7 +76,13 @@ document.getElementById("settings-form").addEventListener("submit", async (e) =>
   const cfg = {
     backend: form.backend.value,
     default_design_md: form.default_design_md.value.trim(),
+    whisper_modus: form.whisper_modus.value,
     whisper_command: form.whisper_command.value.trim() || "whisper",
+    whisper_api_url: form.whisper_api_url.value.trim(),
+    whisper_api_key: form.whisper_api_key.value.trim(),
+    whisper_api_model: form.whisper_api_model.value.trim() || "whisper-1",
+    cf_access_client_id: form.cf_access_client_id.value.trim(),
+    cf_access_client_secret: form.cf_access_client_secret.value.trim(),
     lan_erreichbar: form.lan_erreichbar.checked,
   };
   await fetch("/api/config", {

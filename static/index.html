@@ -38,9 +38,40 @@
       <label>Default-design.md (optional, Pfad)
         <input name="default_design_md" type="text" placeholder="/pfad/zu/design.md">
       </label>
-      <label>Whisper-Befehl (lokale Transkription)
-        <input name="whisper_command" type="text" placeholder="whisper">
-      </label>
+      <fieldset>
+        <legend>Transkription (Whisper)</legend>
+        <label>Modus
+          <select name="whisper_modus">
+            <option value="lokal">Lokal (Befehl)</option>
+            <option value="api">API (OpenAI-kompatibel, z. B. GPU-Dienst)</option>
+          </select>
+        </label>
+        <label class="whisper-lokal">Whisper-Befehl (lokal)
+          <input name="whisper_command" type="text" placeholder="whisper">
+        </label>
+        <div class="whisper-api">
+          <label>API-URL (Basis, inkl. /v1)
+            <div class="zeile">
+              <input name="whisper_api_url" type="text" placeholder="https://<dienst>/v1">
+              <button type="button" id="btn-openrouter" title="OpenRouter-URL einsetzen">OpenRouter</button>
+            </div>
+          </label>
+          <label>API-Key
+            <input name="whisper_api_key" type="password" autocomplete="off">
+          </label>
+          <label>Modell
+            <input name="whisper_api_model" type="text" placeholder="whisper-1">
+          </label>
+          <label>Cloudflare Access — Client-Id (optional)
+            <input name="cf_access_client_id" type="password" autocomplete="off">
+          </label>
+          <label>Cloudflare Access — Client-Secret (optional)
+            <input name="cf_access_client_secret" type="password" autocomplete="off">
+          </label>
+          <p class="muted">Alle Werte liegen nur in der lokalen config.json (gitignored)
+             und werden nicht ins Repo übernommen.</p>
+        </div>
+      </fieldset>
       <label class="checkbox">
         <input name="lan_erreichbar" type="checkbox">
         Im LAN erreichbar (ohne Login — jedes Gerät im Netz kann die App nutzen)

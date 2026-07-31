@@ -9,7 +9,16 @@ CONFIG_PATH = ROOT / "config.json"
 DEFAULTS = {
     "backend": "claude",           # "claude" | "kimi"
     "default_design_md": "",       # Pfad zu einer design.md, leer = Preset-Default
-    "whisper_command": "whisper",  # lokale Transkription
+    "whisper_modus": "lokal",      # "lokal" | "api"
+    "whisper_command": "whisper",  # lokale Transkription (Modus "lokal")
+    # Modus "api": OpenAI-kompatibler Transkriptionsdienst (/v1/audio/transcriptions).
+    # Zugangsdaten leben NUR in config.json (gitignored) — niemals ins Repo.
+    "whisper_api_url": "",         # z. B. https://<dienst>/v1 — OpenRouter-Preset: https://openrouter.ai/api/v1
+    "whisper_api_key": "",
+    "whisper_api_model": "whisper-1",
+    # Cloudflare Access (Service Token), falls der Dienst dahinter liegt
+    "cf_access_client_id": "",
+    "cf_access_client_secret": "",
     "port": 8710,
     "lan_erreichbar": True,        # True = im LAN erreichbar (0.0.0.0), False = nur localhost
 }
@@ -30,6 +39,9 @@ def save(cfg: dict) -> dict:
     clean = {k: cfg.get(k, v) for k, v in DEFAULTS.items()}
     if clean["backend"] not in ("claude", "kimi"):
         clean["backend"] = "claude"
+    if clean["whisper_modus"] not in ("lokal", "api"):
+        clean["whisper_modus"] = "lokal"
+    clean["lan_erreichbar"] = bool(clean["lan_erreichbar"])
     CONFIG_PATH.write_text(
         json.dumps(clean, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )

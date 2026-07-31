@@ -70,7 +70,50 @@ den Stand aus dem Git-Verlauf wiederherstellen:
 Der hinterlegte Pfad zur design.md existiert nicht.
 Entweder den Pfad in den Einstellungen korrigieren oder die Datei anlegen —
 Vorlage zum Ausfüllen: skill/schulung/reference/design-vorlage.md""",
+    "whisper_api": """\
+Der Dienst muss OpenAI-kompatibel sein und verbose_json mit WORT-Zeitstempeln
+liefern (Segment-Granularität reicht dem Skill nicht — getestet wird hier
+nur die Erreichbarkeit über GET <url>/models).
+
+1. URL OHNE Pfad hinter /v1 eintragen, z. B. https://<dienst>/v1
+   — der Endpunkt /audio/transcriptions wird vom Skill ergänzt.
+2. API-Key eintragen, falls der Dienst einen verlangt.
+3. Liegt der Dienst hinter Cloudflare Access: Service-Token anlegen
+   (Cloudflare Zero Trust → Access → Service Auth → Service Token)
+   und Client-Id + Client-Secret eintragen. Beide werden als Header
+   CF-Access-Client-Id / CF-Access-Client-Secret mitgeschickt.
+4. Modellname so eintragen, wie der Dienst ihn kennt (z. B. whisper-1,
+   faster-whisper-large-v3, Systran/faster-whisper-large-v3).
+
+Alle Werte stehen nur in der lokalen config.json (gitignored).""",
 }
+
+
+def _api_probe(cfg: dict) -> tuple[bool, str]:
+    """Prüft den OpenAI-kompatiblen Whisper-Dienst über GET <url>/models."""
+    import json
+    import urllib.error
+    import urllib.request
+
+    url = cfg["whisper_api_url"].strip().rstrip("/")
+    if not url:
+        return False, "keine URL eingetragen"
+    headers = {}
+    if cfg["whisper_api_key"]:
+        headers["Authorization"] = f"Bearer {cfg['whisper_api_key']}"
+    if cfg["cf_access_client_id"]:
+        headers["CF-Access-Client-Id"] = cfg["cf_access_client_id"]
+        headers["CF-Access-Client-Secret"] = cfg["cf_access_client_secret"]
+    req = urllib.request.Request(f"{url}/models", headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read().decode("utf-8", "replace"))
+            modelle = len(data.get("data", [])) if isinstance(data, dict) else 0
+            return True, f"erreichbar, {modelle} Modell(e) gemeldet"
+    except urllib.error.HTTPError as e:
+        return False, f"HTTP {e.code} — Zugangsdaten/Cloudflare-Token prüfen"
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        return False, f"nicht erreichbar: {e}"
 
 
 def _run(cmd: list[str]) -> tuple[bool, str]:
@@ -130,10 +173,19 @@ def run_all(cfg: dict) -> list[dict]:
         "ffmpeg", "ffmpeg", ["ffmpeg", "-version"], pflicht=True,
         hint="Distributionspaket installieren (z. B. apt install ffmpeg)"))
 
-    checks.append(_check_binary(
-        "whisper", "Whisper (lokale Transkription)", [cfg["whisper_command"], "--help"],
-        pflicht=False,
-        hint="lokal installieren oder Remote-Befehl hinterlegen — Kachel anklicken"))
+    if cfg["whisper_modus"] == "api":
+        ok, first = _api_probe(cfg)
+        checks.append({
+            "id": "whisper_api", "name": "Whisper-API (Transkriptionsdienst)",
+            "status": "ok" if ok else "fail",
+            "detail": first,
+            "hint": "" if ok else "URL/Key/Cloudflare-Token in den Einstellungen prüfen",
+            "anleitung": ANLEITUNG["whisper_api"]})
+    else:
+        checks.append(_check_binary(
+            "whisper", "Whisper (lokale Transkription)", [cfg["whisper_command"], "--help"],
+            pflicht=False,
+            hint="lokal installieren oder in den Einstellungen auf API-Modus wechseln"))
 
     # Node 22+ für HyperFrames (optional): unter nvm suchen
     nvm_dir = Path.home() / ".nvm" / "versions" / "node"
