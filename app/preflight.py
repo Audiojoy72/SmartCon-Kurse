@@ -187,18 +187,27 @@ def run_all(cfg: dict) -> list[dict]:
             pflicht=False,
             hint="lokal installieren oder in den Einstellungen auf API-Modus wechseln"))
 
-    # Node 22+ für HyperFrames (optional): unter nvm suchen
-    nvm_dir = Path.home() / ".nvm" / "versions" / "node"
+    # Node 22+ für HyperFrames (optional): erst System-Node prüfen, dann nvm
     node22 = ""
-    if nvm_dir.is_dir():
-        for v in sorted(nvm_dir.iterdir(), reverse=True):
+    if shutil.which("node"):
+        ok, first = _run(["node", "--version"])
+        if ok:
             try:
-                major = int(v.name.lstrip("v").split(".")[0])
+                if int(first.lstrip("v").split(".")[0]) >= 22:
+                    node22 = first
             except ValueError:
-                continue
-            if major >= 22:
-                node22 = v.name
-                break
+                pass
+    if not node22:
+        nvm_dir = Path.home() / ".nvm" / "versions" / "node"
+        if nvm_dir.is_dir():
+            for v in sorted(nvm_dir.iterdir(), reverse=True):
+                try:
+                    major = int(v.name.lstrip("v").split(".")[0])
+                except ValueError:
+                    continue
+                if major >= 22:
+                    node22 = v.name
+                    break
     checks.append({"id": "node22", "name": "Node 22+ (HyperFrames, optional)",
                    "status": "ok" if node22 else "warn",
                    "detail": node22 or "nicht gefunden",

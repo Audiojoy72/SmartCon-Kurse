@@ -24,13 +24,34 @@ Frühe Entwicklung. Das verbindliche Pflichtenheft steht in [SPEC.md](SPEC.md).
 
 ## Start
 
+### Mit Docker (empfohlen)
+
+Das Image enthält die App **und** alle Werkzeuge (claude-/kimi-CLI, Higgsfield-CLI,
+ffmpeg, Node 22, cloudflared, openssh). Die Anmeldungen der CLIs kommen nicht ins
+Image, sondern werden aus dem Home-Verzeichnis gemountet (Pfade in
+`docker-compose.yml` anpassen):
+
+```sh
+docker compose build
+docker compose up -d
+```
+
+Danach http://localhost:8710 im Browser öffnen (bzw. http://<host-ip>:8710 aus dem LAN).
+
+Dienste, die auf dem Host laufen (z. B. ein SSH-Tunnel zum Whisper-Dienst), sind im
+Container über `host.docker.internal` erreichbar — in den Einstellungen also
+`http://host.docker.internal:<port>/v1` eintragen.
+
+### Ohne Docker (Entwicklung)
+
 ```sh
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m app.main
 ```
 
-Danach http://localhost:8710 im Browser öffnen.
+Dabei müssen die Werkzeuge auf dem Host installiert sein — der System-Check in der
+App zeigt, was fehlt (Kacheln anklicken für Installationsanleitungen).
 
 ## Lizenz
 

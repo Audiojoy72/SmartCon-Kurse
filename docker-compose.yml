@@ -1,0 +1,25 @@
+# SmartCon-Schulungen — lokaler Betrieb
+# Anmeldungen der CLIs werden vom Host gemountet (nichts Geheimes im Image).
+# Pfade ggf. anpassen ($HOME zeigt auf den aufrufenden Benutzer).
+
+services:
+  app:
+    build: .
+    container_name: smartcon-schulungen
+    ports:
+      - "8710:8710"
+    extra_hosts:
+      # damit Dienste auf dem Host (z. B. der Whisper-SSH-Tunnel) erreichbar sind:
+      # in den Einstellungen http://host.docker.internal:18710/v1 eintragen
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./config.json:/app/config.json
+      - ./projects:/app/projects
+      # Anmeldungen (read-write, die CLIs pflegen dort Tokens/Sessions)
+      - $HOME/.claude:/root/.claude
+      - $HOME/.kimi-code:/root/.kimi-code
+      - $HOME/.config/higgsfield:/root/.config/higgsfield
+      # SSH-Schlüssel + Cloudflare-Token für den Transkriptions-Tunnel (nur lesen)
+      - $HOME/.ssh:/root/.ssh:ro
+      - $HOME/.cloudflare:/root/.cloudflare:ro
+    restart: unless-stopped
