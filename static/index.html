@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SmartCon-Schulungen</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>SmartCon-Schulungen</h1>
+  <nav>
+    <button id="tab-ampel" class="tab aktiv" data-tab="ampel">System-Check</button>
+    <button id="tab-settings" class="tab" data-tab="settings">Einstellungen</button>
+  </nav>
+</header>
+
+<main>
+  <section id="view-ampel" class="view aktiv">
+    <div class="view-kopf">
+      <h2>System-Check</h2>
+      <button id="btn-recheck">Erneut prüfen</button>
+    </div>
+    <p class="muted">Prüft alle Werkzeuge, die die App und der Agent brauchen.
+       Rot = Pflicht und fehlt, Gelb = optional und fehlt.</p>
+    <ul id="ampel-liste" class="ampel"></ul>
+  </section>
+
+  <section id="view-settings" class="view">
+    <h2>Einstellungen</h2>
+    <form id="settings-form">
+      <label>Agenten-Backend
+        <select name="backend">
+          <option value="claude">Claude Code (primär)</option>
+          <option value="kimi">Kimi (Fallback)</option>
+        </select>
+      </label>
+      <label>Default-design.md (optional, Pfad)
+        <input name="default_design_md" type="text" placeholder="/pfad/zu/design.md">
+      </label>
+      <label>Whisper-Befehl (lokale Transkription)
+        <input name="whisper_command" type="text" placeholder="whisper">
+      </label>
+      <button type="submit">Speichern</button>
+      <span id="settings-status" class="muted"></span>
+    </form>
+  </section>
+</main>
+
+<footer>
+  AI-SmartCon – Matthias Geist · Danke an Julian Ivanov für den tollen Skill
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
