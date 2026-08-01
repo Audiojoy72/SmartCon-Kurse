@@ -117,11 +117,20 @@ const PHASEN_LABEL = {
 
 let aktuellerSlug = null;
 let eventQuelle = null;
+let listeTimer = null;
 
 function zeigePanel(id) {
   ["pv-liste", "pv-formular", "pv-detail"].forEach((p) => {
     document.getElementById(p).hidden = p !== id;
   });
+  if (id !== "pv-liste") listePollingStoppen();
+}
+
+function listePollingStoppen() {
+  if (listeTimer) {
+    clearTimeout(listeTimer);
+    listeTimer = null;
+  }
 }
 
 function badge(phase) {
@@ -130,8 +139,14 @@ function badge(phase) {
 
 async function ladeProjekte() {
   const box = document.getElementById("projekt-liste");
+  listePollingStoppen();
   try {
     const data = await (await fetch("/api/projekte")).json();
+    // Läuft irgendwo ein Agent, holt sich die Liste den neuen Stand selbst —
+    // sonst bliebe „Produktion läuft …" bis zum manuellen Reload stehen.
+    if (data.projekte.some((p) => (p.phase || "").endsWith("_laeuft"))) {
+      listeTimer = setTimeout(ladeProjekte, 15000);
+    }
     if (!data.projekte.length) {
       box.innerHTML = "<p class='muted'>Noch keine Projekte — „Neue Schulung“ legt das erste an.</p>";
       return;
@@ -478,7 +493,10 @@ function rendereLevelTabelle() {
   }
   tabelle.appendChild(tbody);
   box.innerHTML = "";
-  box.appendChild(tabelle);
+  const scrollbox = document.createElement("div");
+  scrollbox.className = "tabelle-scroll";
+  scrollbox.appendChild(tabelle);
+  box.appendChild(scrollbox);
   // Geänderte Dropdowns als medium_overrides sammeln
   tabelle.querySelectorAll("select").forEach((sel) => {
     sel.addEventListener("change", () => {
@@ -517,9 +535,9 @@ function rendereKosten() {
       `Differenz ${fmtCredits(summe - guthaben)} Credits</div>`;
   }
   box.innerHTML =
-    `<table class="gate-tabelle"><thead><tr>` +
+    `<div class="tabelle-scroll"><table class="gate-tabelle"><thead><tr>` +
     `<th>Typ</th><th>Beschreibung</th><th>Anzahl</th><th>Credits je</th><th>Summe</th>` +
-    `</tr></thead><tbody>${zeilen}</tbody></table>` +
+    `</tr></thead><tbody>${zeilen}</tbody></table></div>` +
     `<div class="gate-summe">Geschätzte Summe: ${fmtCredits(summe)} Credits</div>` +
     `<div class="muted">Aktuelles Higgsfield-Guthaben: ` +
     (typeof guthaben === "number" ? fmtCredits(guthaben) + " Credits" : "unbekannt") +

@@ -397,7 +397,11 @@ def api_ergebnis_vorschau(slug: str, dateiname: str):
 
 @app.get("/")
 def index():
-    return FileResponse(STATIC / "index.html")
+    # Nicht cachen: sonst hält ein Handy-Browser die alte index.html fest und
+    # holt damit auch die alten ?v=-Verweise auf CSS/JS — Änderungen am
+    # Frontend blieben unsichtbar. Die Assets selbst dürfen gecacht werden.
+    return FileResponse(STATIC / "index.html",
+                        headers={"Cache-Control": "no-cache"})
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

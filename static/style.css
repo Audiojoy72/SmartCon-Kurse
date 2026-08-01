@@ -179,11 +179,16 @@ legend { padding: 0 .5rem; color: var(--muted); font-size: .9rem; }
 .badge.phase-fertig { color: var(--ok); border-color: var(--ok); }
 .badge.phase-fehler { color: var(--fail); border-color: var(--fail); }
 
-.statuszeile { display: flex; align-items: center; gap: .6rem; }
+/* Umbruch nötig, weil die Meta-Angaben (Material-Dateinamen) beliebig lang
+   werden — ohne wrap schiebt der Text die Seite auf dem Handy auseinander. */
+.statuszeile { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.statuszeile > .badge { flex: 0 0 auto; }
+.statuszeile > span:not(.badge) { min-width: 0; overflow-wrap: anywhere; }
 
 .aktionen {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;   /* zwei Buttons + Statushinweis passen auf 320px nicht in eine Zeile */
   gap: .8rem;
   margin: .8rem 0 1.2rem;
 }
@@ -278,6 +283,12 @@ h3 { margin: 1.4rem 0 .6rem; font-size: 1rem; }
 
 /* --- Freigabe-Gate --- */
 
+/* Die Tabellen haben 4–5 Spalten und passen auf ein Handy nicht. Statt sie
+   unlesbar zu quetschen, scrollen sie in ihrem eigenen Kasten — die Seite
+   selbst bleibt schmal. */
+.tabelle-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tabelle-scroll .gate-tabelle { min-width: 30rem; }
+
 .gate-tabelle {
   width: 100%;
   border-collapse: collapse;
@@ -341,6 +352,7 @@ button.go:hover { border-color: var(--ok); }
 .ergebnis-datei {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;   /* Dateiname + Größe + zwei Buttons passen sonst auf kein Handy */
   gap: .8rem;
   background: var(--panel);
   border: 1px solid var(--line);

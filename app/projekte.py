@@ -19,6 +19,7 @@ import threading
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parent.parent
 PROJECTS = ROOT / "projects"
@@ -65,6 +66,23 @@ def projekt_dir(slug: str) -> Path | None:
     return d if d.is_dir() else None
 
 
+def _dateiname(name: str) -> str:
+    """Basisname einer hochgeladenen Datei, URL-Kodierung zurückgedreht.
+
+    Zieht man eine Datei per Drag & Drop aus einem Browser-Tab statt aus dem
+    Dateimanager, liefert der Browser den kodierten URL-Namen — aus
+    „TÜV Vortrag.pptx" wird „T%C3%9CV%20Vortrag.pptx". Das landete bisher so
+    auf der Platte und stand unlesbar im Briefing.
+
+    Der zweite basename ist Pflicht, nicht Kosmetik: unquote macht aus „%2F"
+    ein „/" und könnte sonst aus dem Projektordner herausführen.
+    """
+    name = Path(name).name
+    if "%" in name:
+        name = Path(unquote(name)).name
+    return name
+
+
 def _freier_slug(base: str) -> str:
     slug, n = base, 2
     while (PROJECTS / slug).exists():
@@ -85,7 +103,7 @@ def create(briefing: dict, design_md: bytes | None = None,
         json.dumps(briefing, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     if design_md:
         (d / "design.md").write_bytes(design_md)
-    material = [(Path(name).name, data) for name, data in (material or [])]
+    material = [(_dateiname(name), data) for name, data in (material or [])]
     material = [(name, data) for name, data in material if name]
     if material:
         (d / "material").mkdir()
