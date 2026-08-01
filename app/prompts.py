@@ -2,10 +2,12 @@
 Phase einen Arbeitsauftrag, der auf die SKILL.md im Repo verweist."""
 
 import re
+import shlex
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SKILL_MD = ROOT / "skill" / "schulung" / "SKILL.md"
+SKILL_SCRIPTS = ROOT / "skill" / "schulung" / "scripts"
 STYLES_DIR = ROOT / "skill" / "schulung" / "reference" / "styles"
 
 PRESET_NAMEN = ("cinematic", "comic", "corporate", "statisch")
@@ -201,3 +203,84 @@ oder teurer ist).
 
 KEINE Produktion, KEINE Credits (kein „higgsfield generate"). Stelle keine
 Rückfragen. Bestätige danach kurz, was du geändert hast."""
+
+
+def whisper_remote_env(cfg: dict) -> dict[str, str]:
+    """Baut WHISPER_REMOTE_CMD für den Produktions-Subprozess aus der Config.
+
+    Modus „api": ein curl-Aufruf gegen den OpenAI-kompatiblen
+    Transkriptionsdienst (<whisper_api_url>/audio/transcriptions), der die
+    Audiodatei per stdin bekommt (-F file=@-) und verbose_json mit
+    Wort-Zeitstempeln liefert — genau das Format, das transkribieren.sh vom
+    Remote-Kommando erwartet. Modus „lokal" oder fehlende URL: leeres Dict,
+    dann nutzt das Skript das lokale whisper.
+    """
+    if cfg.get("whisper_modus") != "api":
+        return {}
+    url = (cfg.get("whisper_api_url") or "").strip().rstrip("/")
+    if not url:
+        return {}
+    teile = ["curl", "-sS", "-m", "600"]
+    key = (cfg.get("whisper_api_key") or "").strip()
+    if key:
+        teile += ["-H", shlex.quote(f"Authorization: Bearer {key}")]
+    cf_id = (cfg.get("cf_access_client_id") or "").strip()
+    if cf_id:
+        teile += ["-H", shlex.quote(f"CF-Access-Client-Id: {cf_id}")]
+    cf_secret = (cfg.get("cf_access_client_secret") or "").strip()
+    if cf_secret:
+        teile += ["-H", shlex.quote(f"CF-Access-Client-Secret: {cf_secret}")]
+    modell = (cfg.get("whisper_api_model") or "whisper-1").strip()
+    teile += [
+        shlex.quote(f"{url}/audio/transcriptions"),
+        "-F", "file=@-",
+        "-F", "response_format=verbose_json",
+        "-F", "timestamp_granularities[]=word",
+        "-F", shlex.quote(f"model={modell}"),
+    ]
+    return {"WHISPER_REMOTE_CMD": " ".join(teile)}
+
+
+def produktion_prompt(projekt_dir: Path, whisper_remote: bool) -> str:
+    """Arbeitsauftrag für Teil 2 (Phasen 2.5–11): die komplette Produktion."""
+    if whisper_remote:
+        transkription_zeile = (
+            "Für die Transkription ist die Umgebungsvariable WHISPER_REMOTE_CMD\n"
+            "bereits im Prozess gesetzt — scripts/transkribieren.sh nutzt sie\n"
+            "automatisch. Nichts daran ändern und KEIN lokales whisper\n"
+            "nachinstallieren.")
+    else:
+        transkription_zeile = (
+            "Für die Transkription ist WHISPER_REMOTE_CMD NICHT gesetzt —\n"
+            "scripts/transkribieren.sh nutzt dann das lokal installierte\n"
+            "whisper (Default-Weg des Skills).")
+    return f"""Du bist der Produktions-Agent der App „SmartCon-Schulungen". Dein
+Arbeitsverzeichnis ist der Projektordner: {projekt_dir}
+
+Lies zuerst diese Skill-Anleitung vollständig: {SKILL_MD}
+Arbeite danach TEIL 2 vollständig ab — von Phase 2.5 (Preflight) bis Phase 11
+(Auslieferung). Quelle ist ausschließlich die Datei curriculum.md in diesem
+Projektordner: was produziert wird, steht dort. Nicht improvisieren, keine
+Rückfragen (kein AskUserQuestion).
+
+## Reihenfolge (verbindlich)
+
+1. ZUERST der Preflight — vor jeder kostenpflichtigen Aktion:
+     bash {SKILL_SCRIPTS / 'preflight.sh'}
+   Bricht der Preflight ab (Exit-Code ungleich 0): sofort stoppen, nichts
+   generieren und klar melden, was fehlt.
+2. Transkription: {transkription_zeile}
+3. Kostenkontrolle: vor kostenpflichtigen Generierungen die geplanten Aufrufe
+   mit „higgsfield generate cost …" durchrechnen und die Summe gegen
+   „higgsfield account status" halten. Reicht das Guthaben nicht: NICHT „so
+   weit es reicht" produzieren, sondern stoppen und klar melden (die App kann
+   keine Rückfragen beantworten).
+4. Auslieferung (Phase 11): Die fertige HTML-Datei bleibt im Projektordner
+   ({projekt_dir}). NICHT irgendwo hochladen — kein rclone, kein
+   Filesharing-Dienst, kein externer Ablageort.
+
+## Abschluss
+
+Beende den Lauf mit einer kurzen Zusammenfassung als letztem Text: Name der
+fertigen HTML-Datei, Anzahl produzierter Medien (Bilder/Videos/Voiceovers)
+und die von dir mitgezählten Credits."""

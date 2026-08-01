@@ -4,7 +4,8 @@ Struktur pro Projekt:
     brief.json      Briefing-Felder aus dem Formular
     status.json     phase, sessions (Session-IDs je Phase für Resume),
                     erstellt_am, geaendert_am, ggf. letzter_fehler,
-                    ggf. medium_overrides (Medien-Änderungen aus dem Gate)
+                    ggf. medium_overrides (Medien-Änderungen aus dem Gate),
+                    ggf. guthaben_start (Guthaben beim Produktionsstart)
     design.md       optional, hochgeladen
     material/       optional, hochgeladene Quelldateien
     curriculum.md   Artefakt des Agenten (Teil 1)
@@ -24,13 +25,15 @@ PROJECTS = ROOT / "projects"
 
 _lock = threading.Lock()
 
-# Phasen der App-State-Machine (bis Freigabe-Gate; Produktion folgt später)
+# Phasen der App-State-Machine
 PHASE_BRIEFING = "briefing"
 PHASE_CURRICULUM_LAEUFT = "curriculum_laeuft"
 PHASE_CURRICULUM_FERTIG = "curriculum_fertig"
 PHASE_KOSTENPLAN_LAEUFT = "kostenplan_laeuft"
 PHASE_FREIGABE_LAEUFT = "freigabe_laeuft"
 PHASE_FREIGEGEBEN = "freigegeben"
+PHASE_PRODUKTION_LAEUFT = "produktion_laeuft"
+PHASE_FERTIG = "fertig"
 PHASE_FEHLER = "fehler"
 
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
@@ -139,6 +142,15 @@ def set_medium_overrides(slug: str, overrides: dict) -> None:
     if status is None:
         return
     status["medium_overrides"] = overrides
+    save_status(slug, status)
+
+
+def set_guthaben_start(slug: str, wert: float | None) -> None:
+    """Merkt sich das Higgsfield-Guthaben beim Produktionsstart (Verbrauchszähler)."""
+    status = load_status(slug)
+    if status is None:
+        return
+    status["guthaben_start"] = wert
     save_status(slug, status)
 
 

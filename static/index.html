@@ -108,6 +108,9 @@
         <button id="btn-curriculum-start">Curriculum erzeugen</button>
         <span id="detail-hinweis" class="muted"></span>
       </div>
+      <!-- Verbrauchs-Zähler: nur sichtbar, während die Produktion läuft
+           (Polling alle 30 s gegen /produktion/status) -->
+      <p id="produktion-verbrauch" class="verbrauch" hidden></p>
       <h3>Fortschritt</h3>
       <div id="lauf-log" class="log"><p class="muted">Noch kein Lauf gestartet.</p></div>
       <h3>Curriculum (curriculum.md)</h3>
@@ -134,9 +137,28 @@
         <div id="gate-kosten" class="gate-kosten"></div>
         <div class="aktionen">
           <button id="btn-kostenplan">Kostenplan (neu) berechnen</button>
-          <button id="btn-go" class="go">Freigeben &amp; Produktion starten</button>
+          <button id="btn-go" class="go">Freigeben</button>
           <span id="gate-hinweis" class="muted"></span>
         </div>
+      </div>
+
+      <!-- Produktion: sichtbar ab Phase „freigegeben" -->
+      <div id="produktion" hidden>
+        <h3>Produktion</h3>
+        <div class="aktionen">
+          <button id="btn-produktion-start" class="go">Produktion starten</button>
+          <span id="produktion-hinweis" class="muted"></span>
+        </div>
+      </div>
+
+      <!-- Ergebnis: sichtbar in Phase „fertig" -->
+      <div id="ergebnis" hidden>
+        <h3>Ergebnis</h3>
+        <div id="ergebnis-liste"></div>
+        <p class="muted">Nachbearbeiten: oben einen Änderungswunsch an den Agenten
+           senden (die Phase springt zurück ins Curriculum) bzw. nach erneuter
+           Freigabe die Produktion neu starten. Produktionsrelevante Änderungen
+           kosten erneut Credits.</p>
       </div>
     </div>
   </section>

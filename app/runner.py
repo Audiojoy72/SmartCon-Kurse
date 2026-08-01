@@ -13,6 +13,7 @@ Event-Typen:
 """
 
 import json
+import os
 import queue
 import subprocess
 import threading
@@ -32,6 +33,7 @@ ALLOWED_TOOLS = "Bash,Edit,Write,Read,Glob,Grep,WebSearch,WebFetch"
 PHASE_NACH_ERFOLG = {
     "curriculum": projekte.PHASE_CURRICULUM_FERTIG,
     "freigabe": projekte.PHASE_FREIGEGEBEN,
+    "produktion": projekte.PHASE_FERTIG,
 }
 
 _laeufe: dict[str, dict] = {}          # slug -> {phase, gestartet}
@@ -111,12 +113,15 @@ def _emit(slug: str, typ: str, **daten) -> dict:
 
 
 def start(slug: str, phase: str, prompt: str, session_id: str | None = None,
-          zurueck_phase: str | None = None) -> None:
+          zurueck_phase: str | None = None,
+          env: dict[str, str] | None = None) -> None:
     """Startet den Agenten-Lauf in einem Hintergrund-Thread.
 
     Wirft LaufAktiv, wenn für das Projekt schon ein Lauf aktiv ist.
     zurueck_phase: Phase, zu der der Lauf-Typ „kostenplan" nach Erfolg
     zurückkehrt (die Phase, die vor dem Start aktiv war).
+    env: zusätzliche Umgebungsvariablen für den Agenten-Subprozess
+    (z. B. WHISPER_REMOTE_CMD für die Remote-Transkription).
     """
     with _laeufe_lock:
         if slug in _laeufe:
@@ -124,7 +129,8 @@ def start(slug: str, phase: str, prompt: str, session_id: str | None = None,
         _laeufe[slug] = {"phase": phase, "gestartet": time.time(),
                          "zurueck": zurueck_phase}
     t = threading.Thread(
-        target=_fuehre_aus, args=(slug, phase, prompt, session_id), daemon=True)
+        target=_fuehre_aus, args=(slug, phase, prompt, session_id, env),
+        daemon=True)
     t.start()
 
 
@@ -203,17 +209,21 @@ def _parse_claude_zeile(slug: str, phase: str, zeile: str,
 
 
 def _fuehre_aus(slug: str, phase: str, prompt: str,
-                session_id: str | None) -> None:
+                session_id: str | None,
+                env: dict[str, str] | None = None) -> None:
     backend = config.load().get("backend", "claude")
     cwd = projekte.projekt_dir(slug)
     zustand = {"session_gespeichert": False, "fertig_gesehen": False}
     _emit(slug, "status",
           text=f"Phase „{phase}“ gestartet (Backend: {backend}"
-               + (", mit Session-Resume" if session_id else "") + ")")
+               + (", mit Session-Resume" if session_id else "")
+               + (", Remote-Transkription aktiv"
+                  if env and env.get("WHISPER_REMOTE_CMD") else "") + ")")
     try:
         proc = subprocess.Popen(
             _kommando(backend, prompt, session_id),
             cwd=str(cwd) if cwd else None,
+            env={**os.environ, **env} if env else None,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, bufsize=1)
     except FileNotFoundError:

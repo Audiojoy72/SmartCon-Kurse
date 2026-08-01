@@ -6,6 +6,7 @@ Start: .venv/bin/python -m app.main  →  http://localhost:8710
 import asyncio
 import json
 import queue
+import re
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -294,6 +295,100 @@ async def api_go(slug: str, body: dict | None = None):
         raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
     return {"ok": True, "phase": projekte.PHASE_FREIGABE_LAEUFT,
             "resume": bool(session_id)}
+
+
+# --- Produktion --------------------------------------------------------------
+
+@app.post("/api/projekte/{slug}/produktion/starten")
+def api_produktion_starten(slug: str):
+    """Startet die Produktion (Teil 2 des Skills) — nur aus Phase „freigegeben"."""
+    p = _projekt_oder_404(slug)
+    phase = p["status"].get("phase", projekte.PHASE_BRIEFING)
+    if phase != projekte.PHASE_FREIGEGEBEN:
+        raise HTTPException(
+            409, f"Produktion nur aus der Phase „freigegeben“ möglich "
+                 f"(aktuell: „{phase}“)")
+    if runner.laeuft(slug):
+        raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
+    d = projekte.projekt_dir(slug)
+    if not (d / "curriculum.md").is_file():
+        raise HTTPException(404, "Kein curriculum.md vorhanden")
+    cfg = config.load()
+    env = prompts.whisper_remote_env(cfg)
+    guthaben_start = higgsfield.guthaben()
+    projekte.set_guthaben_start(slug, guthaben_start)
+    projekte.set_phase(slug, projekte.PHASE_PRODUKTION_LAEUFT)
+    try:
+        runner.start(slug, "produktion",
+                     prompts.produktion_prompt(d, whisper_remote=bool(env)),
+                     env=env)
+    except runner.LaufAktiv:
+        projekte.set_phase(slug, projekte.PHASE_FREIGEGEBEN)
+        raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
+    return {"ok": True, "phase": projekte.PHASE_PRODUKTION_LAEUFT,
+            "guthaben_start": guthaben_start,
+            "whisper_remote": bool(env)}
+
+
+@app.get("/api/projekte/{slug}/produktion/status")
+def api_produktion_status(slug: str):
+    """Verbrauchs-Zähler: Guthaben beim Start, jetzt (60-s-Cache) und Differenz."""
+    p = _projekt_oder_404(slug)
+    start_wert = p["status"].get("guthaben_start")
+    jetzt = higgsfield.guthaben()
+    verbraucht = None
+    if (isinstance(start_wert, (int, float))
+            and isinstance(jetzt, (int, float))):
+        verbraucht = round(start_wert - jetzt, 1)
+    return {"phase": p["status"].get("phase"),
+            "guthaben_start": start_wert,
+            "guthaben_jetzt": jetzt,
+            "verbraucht": verbraucht}
+
+
+# --- Ergebnis (Fertig-Ansicht) ------------------------------------------------
+
+_DATEINAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+
+
+def _html_datei_oder_404(slug: str, dateiname: str) -> Path:
+    """Validiert den Dateinamen und liefert die HTML-Datei im Projektordner."""
+    _projekt_oder_404(slug)
+    d = projekte.projekt_dir(slug)
+    if not _DATEINAME_RE.match(dateiname) or not dateiname.endswith(".html"):
+        raise HTTPException(400, "Ungültiger Dateiname")
+    f = d / dateiname
+    if not f.is_file() or f.resolve().parent != d.resolve():
+        raise HTTPException(404, f"Datei „{dateiname}“ nicht gefunden")
+    return f
+
+
+@app.get("/api/projekte/{slug}/ergebnis")
+def api_ergebnis_liste(slug: str):
+    """Liste der fertigen HTML-Dateien im Projektordner (neueste zuerst)."""
+    _projekt_oder_404(slug)
+    d = projekte.projekt_dir(slug)
+    dateien = [
+        {"name": f.name, "groesse": f.stat().st_size,
+         "mtime": f.stat().st_mtime}
+        for f in d.glob("*.html") if f.is_file()
+    ]
+    dateien.sort(key=lambda e: e["mtime"], reverse=True)
+    return {"dateien": dateien}
+
+
+@app.get("/api/projekte/{slug}/ergebnis/{dateiname}")
+def api_ergebnis_download(slug: str, dateiname: str):
+    """Download der fertigen HTML-Datei (Content-Disposition: attachment)."""
+    f = _html_datei_oder_404(slug, dateiname)
+    return FileResponse(f, filename=f.name)
+
+
+@app.get("/api/projekte/{slug}/vorschau/{dateiname}")
+def api_ergebnis_vorschau(slug: str, dateiname: str):
+    """Dieselbe Datei als text/html — zum Ansehen im Browser (neuer Tab)."""
+    f = _html_datei_oder_404(slug, dateiname)
+    return FileResponse(f, media_type="text/html")
 
 
 @app.get("/")

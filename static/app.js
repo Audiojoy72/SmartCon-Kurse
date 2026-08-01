@@ -110,6 +110,8 @@ const PHASEN_LABEL = {
   kostenplan_laeuft: "Kostenplan läuft …",
   freigabe_laeuft: "Freigabe läuft …",
   freigegeben: "Freigegeben",
+  produktion_laeuft: "Produktion läuft …",
+  fertig: "Fertig",
   fehler: "Fehler",
 };
 
@@ -248,6 +250,7 @@ async function oeffneProjekt(slug) {
   sseVerbinden(slug);
   ladeCurriculum();
   ladeGate(p);
+  ladeProduktion(p);
 }
 
 function aktualisiereStatuszeile(p) {
@@ -309,10 +312,12 @@ function sseVerbinden(slug) {
       aktualisiereDetail();
       ladeCurriculum();
       ladeGate();
+      ladeProduktion();
       eventQuelle.close();
     } else if (ev.typ === "fehler") {
       logZeile(`❌ <b>Fehler:</b> ${esc(ev.text)}`, "fehler");
       aktualisiereDetail();
+      ladeProduktion();
       eventQuelle.close();
     }
   };
@@ -320,6 +325,7 @@ function sseVerbinden(slug) {
 
 document.getElementById("btn-detail-zurueck").addEventListener("click", () => {
   if (eventQuelle) eventQuelle.close();
+  verbrauchPollingStoppen();
   aktuellerSlug = null;
   zeigePanel("pv-liste");
   ladeProjekte();
@@ -393,7 +399,8 @@ const gateZustand = { level: [], overrides: {}, kosten: null, guthaben: null };
 
 // Phasen, in denen das Gate sichtbar ist (curriculum_fertig oder später)
 const GATE_PHASEN = ["curriculum_fertig", "kostenplan_laeuft",
-                     "freigabe_laeuft", "freigegeben"];
+                     "freigabe_laeuft", "freigegeben",
+                     "produktion_laeuft", "fertig"];
 const MEDIUM_OPTIONEN = ["FILM", "ANIMATION", "BILD"];
 
 function mediumNorm(m) {
@@ -428,8 +435,8 @@ async function ladeGate(projekt) {
   rendereLevelTabelle();
   rendereKosten();
   document.getElementById("gate-hinweis").textContent =
-    projekt.status.phase === "freigegeben"
-      ? "Freigegeben — die Produktion folgt mit dem nächsten Ausbau."
+    ["freigegeben", "produktion_laeuft", "fertig"].includes(projekt.status.phase)
+      ? "Freigegeben — unten „Produktion starten“ klicken."
       : "";
 }
 
@@ -552,7 +559,131 @@ document.getElementById("btn-go").addEventListener("click", async () => {
     document.getElementById("lauf-log").innerHTML = "";
     sseVerbinden(aktuellerSlug);
   } else {
-    hinweis.textContent = "Freigegeben — die Produktion folgt mit dem nächsten Ausbau.";
+    hinweis.textContent = "Freigegeben — unten „Produktion starten“ klicken.";
   }
   aktualisiereDetail();
+  ladeProduktion();
 });
+
+// ==========================================================================
+// Produktion + Ergebnis (Fertig-Ansicht)
+// ==========================================================================
+
+// Phasen, in denen der Produktions-Block sichtbar ist
+const PRODUKTION_PHASEN = ["freigegeben", "produktion_laeuft", "fertig"];
+let verbrauchTimer = null;
+
+function verbrauchPollingStoppen() {
+  if (verbrauchTimer) {
+    clearInterval(verbrauchTimer);
+    verbrauchTimer = null;
+  }
+  document.getElementById("produktion-verbrauch").hidden = true;
+}
+
+async function ladeProduktion(projekt) {
+  if (!aktuellerSlug) return;
+  if (!projekt) {
+    const res = await fetch(`/api/projekte/${aktuellerSlug}`);
+    if (!res.ok) return;
+    projekt = await res.json();
+  }
+  const phase = projekt.status.phase;
+  const sichtbar = PRODUKTION_PHASEN.includes(phase);
+  document.getElementById("produktion").hidden = !sichtbar;
+  document.getElementById("btn-produktion-start").hidden =
+    phase !== "freigegeben";
+  document.getElementById("produktion-hinweis").textContent =
+    phase === "produktion_laeuft"
+      ? "Läuft — Fortschritt im Log oben. Das kann 30–60 Minuten dauern."
+      : "";
+  // Verbrauchs-Zähler nur während des Laufs pollen (alle 30 s)
+  verbrauchPollingStoppen();
+  if (phase === "produktion_laeuft") {
+    aktualisiereVerbrauch();
+    verbrauchTimer = setInterval(aktualisiereVerbrauch, 30000);
+  }
+  ladeErgebnis(phase);
+}
+
+async function aktualisiereVerbrauch() {
+  if (!aktuellerSlug) return;
+  const zeile = document.getElementById("produktion-verbrauch");
+  try {
+    const res = await fetch(`/api/projekte/${aktuellerSlug}/produktion/status`);
+    if (!res.ok) return;
+    const d = await res.json();
+    zeile.hidden = false;
+    if (typeof d.verbraucht === "number") {
+      zeile.textContent =
+        `Verbraucht seit Produktionsstart: ${fmtCredits(d.verbraucht)} Credits ` +
+        `(Guthaben: ${fmtCredits(d.guthaben_jetzt)})`;
+    } else {
+      zeile.textContent =
+        "Verbrauch unbekannt — Higgsfield-Guthaben nicht abrufbar.";
+    }
+  } catch (e) {
+    // einzelner Poll-Fehler ist egal — der nächste Intervall versucht es neu
+  }
+}
+
+document.getElementById("btn-produktion-start").addEventListener("click", async () => {
+  if (!aktuellerSlug) return;
+  const hinweis = document.getElementById("produktion-hinweis");
+  const res = await fetch(`/api/projekte/${aktuellerSlug}/produktion/starten`,
+    { method: "POST" });
+  if (!res.ok) {
+    const fehler = await res.json().catch(() => ({}));
+    hinweis.textContent = "Fehler: " + (fehler.detail || res.status);
+    return;
+  }
+  hinweis.textContent = "Produktion gestartet — Fortschritt im Log oben …";
+  document.getElementById("lauf-log").innerHTML = "";
+  sseVerbinden(aktuellerSlug);
+  aktualisiereDetail();
+  ladeProduktion();
+});
+
+function fmtGroesse(bytes) {
+  if (bytes >= 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + " MB";
+  return Math.max(1, Math.round(bytes / 1024)) + " KB";
+}
+
+async function ladeErgebnis(phase) {
+  const box = document.getElementById("ergebnis");
+  box.hidden = phase !== "fertig";
+  if (box.hidden || !aktuellerSlug) return;
+  const liste = document.getElementById("ergebnis-liste");
+  const res = await fetch(`/api/projekte/${aktuellerSlug}/ergebnis`);
+  if (!res.ok) return;
+  const { dateien } = await res.json();
+  if (!dateien.length) {
+    liste.innerHTML = "<p class='muted'>Keine HTML-Datei im Projektordner gefunden.</p>";
+    return;
+  }
+  liste.innerHTML = "";
+  for (const d of dateien) {
+    const zeile = document.createElement("div");
+    zeile.className = "ergebnis-datei";
+    const datum = new Date(d.mtime * 1000).toLocaleString("de-DE");
+    const url = `/api/projekte/${aktuellerSlug}`;
+    zeile.innerHTML =
+      `<span class="name">${esc(d.name)}</span>` +
+      `<span class="meta">${fmtGroesse(d.groesse)} · ${datum}</span>`;
+    const btnAnsehen = document.createElement("button");
+    btnAnsehen.textContent = "Ansehen";
+    btnAnsehen.addEventListener("click", () =>
+      window.open(`${url}/vorschau/${encodeURIComponent(d.name)}`, "_blank"));
+    const btnDownload = document.createElement("button");
+    btnDownload.textContent = "Herunterladen";
+    btnDownload.addEventListener("click", () => {
+      const a = document.createElement("a");
+      a.href = `${url}/ergebnis/${encodeURIComponent(d.name)}`;
+      a.download = d.name;
+      a.click();
+    });
+    zeile.appendChild(btnAnsehen);
+    zeile.appendChild(btnDownload);
+    liste.appendChild(zeile);
+  }
+}

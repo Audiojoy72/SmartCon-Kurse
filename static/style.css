@@ -175,6 +175,8 @@ legend { padding: 0 .5rem; color: var(--muted); font-size: .9rem; }
 .badge.phase-kostenplan_laeuft { color: var(--warn); border-color: var(--warn); }
 .badge.phase-freigabe_laeuft { color: var(--warn); border-color: var(--warn); }
 .badge.phase-freigegeben { color: var(--ok); border-color: var(--ok); }
+.badge.phase-produktion_laeuft { color: var(--warn); border-color: var(--warn); }
+.badge.phase-fertig { color: var(--ok); border-color: var(--ok); }
 .badge.phase-fehler { color: var(--fail); border-color: var(--fail); }
 
 .statuszeile { display: flex; align-items: center; gap: .6rem; }
@@ -324,6 +326,30 @@ h3 { margin: 1.4rem 0 .6rem; font-size: 1rem; }
 
 button.go { border-color: var(--ok); color: var(--ok); font-weight: 600; }
 button.go:hover { border-color: var(--ok); }
+
+/* --- Produktion + Ergebnis --- */
+
+.verbrauch {
+  background: var(--panel);
+  border: 1px solid var(--warn);
+  border-radius: 6px;
+  color: var(--warn);
+  padding: .55rem .8rem;
+  font-size: .9rem;
+}
+
+.ergebnis-datei {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: .7rem 1rem;
+  margin-bottom: .6rem;
+}
+.ergebnis-datei .name { flex: 1; font-weight: 600; word-break: break-all; }
+.ergebnis-datei .meta { color: var(--muted); font-size: .85rem; white-space: nowrap; }
 
 footer {
   padding: 1rem 2rem;
