@@ -13,6 +13,16 @@ Danke an **Julian Ivanov** für den tollen Skill.
 
 Frühe Entwicklung. Das verbindliche Pflichtenheft steht in [SPEC.md](SPEC.md).
 
+## Screenshots
+
+| Projekte & History | Projekt-Detail mit Curriculum |
+|---|---|
+| ![Projekte](docs/screenshots/projekte.png) | ![Projekt-Detail](docs/screenshots/projekt-detail.png) |
+
+| System-Check mit Installationsanleitungen | Einstellungen |
+|---|---|
+| ![System-Check](docs/screenshots/ampel.png) | ![Einstellungen](docs/screenshots/einstellungen.png) |
+
 ## Voraussetzungen
 
 - Python 3.11+
