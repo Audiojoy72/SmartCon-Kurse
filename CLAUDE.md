@@ -120,4 +120,10 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
 - Frontend-Änderung: `?v=` in `index.html` hochzählen. Die Index-Route liefert
   `Cache-Control: no-cache`, sonst hält der Handy-Browser die alte Seite samt
   alter Asset-Verweise fest.
+- `DELETE /api/projekte/{slug}` entfernt den ganzen Ordner — **kein Papierkorb, kein
+  Export**. Damit ist auch das `curriculum.md` weg, und ohne das ist die Schulung nicht
+  mehr nachbearbeitbar. Am 01.08.2026 genau so passiert; die fertige HTML ließ sich nur
+  retten, weil noch ein Browser-Tab offen war (`fetch(url, {cache: 'force-cache'})`).
+- `projects/` ist gitignored — fertige Schulungen liegen also **nirgendwo sonst**. Wer
+  eine behalten will, sichert sie selbst weg (Nextcloud `AI-SmartCon/Schulungen/`).
 - Whisper-Tunnel (Referenz-Setup): systemd-User-Unit `whisper-tunnel.service`.
