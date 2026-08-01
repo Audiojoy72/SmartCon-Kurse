@@ -132,3 +132,72 @@ Produktion, KEINE Credits (kein „higgsfield generate"). Stelle keine Rückfrag
 — triff bei Unklarheiten eine dokumentierte Annahme.
 
 Beende den Lauf mit einer kurzen Zusammenfassung der vorgenommenen Änderungen."""
+
+
+def kostenplan_prompt(projekt_dir: Path) -> str:
+    """Arbeitsauftrag: Kostenplan (kosten.json) aus dem curriculum.md erstellen."""
+    schema = """
+{
+  "posten": [
+    {"typ": "video|bild|voiceover|upscale|freisteller",
+     "beschreibung": "kurze deutsche Beschreibung",
+     "anzahl": 1,
+     "credits_je": 0.0,
+     "credits_summe": 0.0}
+  ],
+  "summe": 0.0
+}
+"""
+    return f"""Du bist der Kostenplan-Agent der App „SmartCon-Schulungen". Dein
+Arbeitsverzeichnis ist der Projektordner: {projekt_dir}
+
+Lies die Datei {projekt_dir / 'curriculum.md'} (insbesondere Medienplan und
+Produktionsschätzung) und die Kosten-Richtwerte am Ende der Skill-Anleitung
+{SKILL_MD} (Abschnitt „Kosten-Richtwerte (Higgsfield-Credits)").
+
+Erstelle daraus den Kostenplan für die Produktion (Teil 2 des Skills) und
+schreibe ihn als maschinenlesbare JSON-Datei {projekt_dir / 'kosten.json'} —
+exakt in diesem Schema:
+{schema}
+Regeln:
+- „typ" ist genau einer der fünf aufgeführten Werte.
+- „credits_summe" = anzahl × credits_je, „summe" = Summe aller Posten.
+- Zahlen als JSON-Zahlen (Punkt als Dezimaltrennzeichen), keine Einheiten im
+  JSON — Credits-Angaben nur als Zahl.
+- Die Datei enthält NUR das JSON, keinen Kommentar, kein Markdown.
+
+Miss die Preise nach, statt nur zu schätzen: rufe für die konkret geplanten
+Generierungen „higgsfield generate cost <job_type> ..." auf (das ist kostenlos)
+und setze die echten Werte ein. Wo der Aufruf nicht möglich ist, gelten die
+Richtwerte aus der Skill-Anleitung (9 Credits pro Videosekunde, ~4/~2 Credits
+je Bild, ~0,4 Credits je Voiceover-Szene).
+
+STRIKT VERBOTEN: „higgsfield generate create" oder jeder andere Aufruf, der
+Credits verbraucht. Es wird NUR gelesen und per „generate cost" gemessen.
+
+Stelle keine Rückfragen. Beende den Lauf mit einer Zeile: Gesamtsumme und
+Anzahl der Posten."""
+
+
+def freigabe_prompt(aenderungen: list[str], projekt_dir: Path,
+                    hat_session: bool) -> str:
+    """Arbeitsauftrag beim Go mit Medien-Änderungen (Resume der Curriculum-
+    Session): Änderungen ins curriculum.md einarbeiten, dann kurz bestätigen."""
+    vorspann = "" if hat_session else f"""Du arbeitest im Projektordner {projekt_dir}.
+Lies zuerst die Datei {projekt_dir / 'curriculum.md'}.
+
+"""
+    liste = "\n".join(f"- {a}" for a in aenderungen)
+    return f"""{vorspann}Der Nutzer gibt das Curriculum frei — mit folgenden
+Medien-Änderungen, die du zuerst in der Datei curriculum.md im Projektordner
+einarbeitest:
+
+{liste}
+
+Die Änderungen müssen ÜBERALL konsistent sein: in der Level-Übersicht
+(Tabelle) UND in den ausführlichen Level-Abschnitten inkl. Medienplan UND in
+der Produktionsschätzung (Kosten neu rechnen, wenn das neue Medium günstiger
+oder teurer ist).
+
+KEINE Produktion, KEINE Credits (kein „higgsfield generate"). Stelle keine
+Rückfragen. Bestätige danach kurz, was du geändert hast."""

@@ -124,6 +124,20 @@
         <button id="btn-kommentar-send">An den Agenten senden</button>
         <span id="kommentar-status" class="muted"></span>
       </div>
+
+      <!-- Freigabe-Gate: nur sichtbar, wenn ein curriculum.md existiert und
+           die Phase curriculum_fertig (oder später) erreicht hat -->
+      <div id="gate" hidden>
+        <h3>Freigabe-Gate</h3>
+        <div id="gate-level"></div>
+        <h3>Kosten-Dashboard</h3>
+        <div id="gate-kosten" class="gate-kosten"></div>
+        <div class="aktionen">
+          <button id="btn-kostenplan">Kostenplan (neu) berechnen</button>
+          <button id="btn-go" class="go">Freigeben &amp; Produktion starten</button>
+          <span id="gate-hinweis" class="muted"></span>
+        </div>
+      </div>
     </div>
   </section>
 

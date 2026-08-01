@@ -172,6 +172,9 @@ legend { padding: 0 .5rem; color: var(--muted); font-size: .9rem; }
 .badge.phase-briefing { color: var(--muted); }
 .badge.phase-curriculum_laeuft { color: var(--warn); border-color: var(--warn); }
 .badge.phase-curriculum_fertig { color: var(--ok); border-color: var(--ok); }
+.badge.phase-kostenplan_laeuft { color: var(--warn); border-color: var(--warn); }
+.badge.phase-freigabe_laeuft { color: var(--warn); border-color: var(--warn); }
+.badge.phase-freigegeben { color: var(--ok); border-color: var(--ok); }
 .badge.phase-fehler { color: var(--fail); border-color: var(--fail); }
 
 .statuszeile { display: flex; align-items: center; gap: .6rem; }
@@ -270,6 +273,57 @@ form textarea {
 }
 
 h3 { margin: 1.4rem 0 .6rem; font-size: 1rem; }
+
+/* --- Freigabe-Gate --- */
+
+.gate-tabelle {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: .88rem;
+  margin-bottom: 1rem;
+}
+.gate-tabelle th, .gate-tabelle td {
+  text-align: left;
+  padding: .5rem .7rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.gate-tabelle th { color: var(--muted); font-weight: 600; }
+.gate-tabelle tr:last-child td { border-bottom: none; }
+.gate-tabelle td.zahl, .gate-tabelle th:last-child { text-align: right; }
+.gate-tabelle select {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  padding: .3rem .5rem;
+  font: inherit;
+}
+
+.gate-kosten {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  margin-bottom: 1rem;
+}
+.gate-kosten .gate-tabelle { background: var(--bg); }
+.gate-summe { font-size: 1.25rem; font-weight: 700; margin: .6rem 0 .3rem; }
+.gate-urteil {
+  margin-top: .7rem;
+  padding: .55rem .8rem;
+  border-radius: 6px;
+  font-weight: 600;
+}
+.gate-urteil.reicht { background: rgba(76, 175, 125, .15); color: var(--ok); }
+.gate-urteil.reicht-nicht { background: rgba(217, 83, 79, .15); color: var(--fail); }
+.gate-urteil.unbekannt { background: rgba(217, 164, 65, .15); color: var(--warn); }
+
+button.go { border-color: var(--ok); color: var(--ok); font-weight: 600; }
+button.go:hover { border-color: var(--ok); }
 
 footer {
   padding: 1rem 2rem;

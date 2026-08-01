@@ -12,7 +12,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, preflight, projekte, prompts, runner
+from . import config, curriculum, higgsfield, preflight, projekte, prompts, runner
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / "static"
@@ -188,6 +188,11 @@ async def api_curriculum_kommentar(slug: str, body: dict):
     if runner.laeuft(slug):
         raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
     session_id = p["status"].get("sessions", {}).get("curriculum")
+    # Sessions sind an das Arbeitsverzeichnis gebunden (Host- ≠ Container-Pfad):
+    # nur resumen, wenn die Session-Datei hier tatsächlich existiert.
+    if session_id and not runner.session_verfuegbar(
+            session_id, projekte.projekt_dir(slug)):
+        session_id = None
     prompt = prompts.kommentar_prompt(
         kommentar, projekte.projekt_dir(slug), hat_session=bool(session_id))
     projekte.set_phase(slug, projekte.PHASE_CURRICULUM_LAEUFT)
@@ -197,6 +202,98 @@ async def api_curriculum_kommentar(slug: str, body: dict):
         projekte.set_phase(slug, p["status"].get("phase", projekte.PHASE_BRIEFING))
         raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
     return {"ok": True, "resume": bool(session_id)}
+
+
+# --- Freigabe-Gate ---------------------------------------------------------
+
+@app.get("/api/projekte/{slug}/gate")
+def api_gate(slug: str):
+    """Daten fürs Freigabe-Gate: Level-Tabelle, Kostenplan, Higgsfield-Guthaben."""
+    _projekt_oder_404(slug)
+    d = projekte.projekt_dir(slug)
+    level = []
+    cur = d / "curriculum.md"
+    if cur.is_file():
+        level = curriculum.parse_level(cur.read_text(encoding="utf-8"))
+    kosten = None
+    kf = d / "kosten.json"
+    if kf.is_file():
+        try:
+            kosten = json.loads(kf.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            kosten = None
+    return {"level": level, "kosten": kosten, "guthaben": higgsfield.guthaben()}
+
+
+@app.post("/api/projekte/{slug}/gate/kostenplan")
+def api_kostenplan_starten(slug: str):
+    """Startet die Runner-Phase „kostenplan" (Hintergrund) → kosten.json."""
+    p = _projekt_oder_404(slug)
+    d = projekte.projekt_dir(slug)
+    if not (d / "curriculum.md").is_file():
+        raise HTTPException(404, "Noch kein curriculum.md vorhanden")
+    if runner.laeuft(slug):
+        raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
+    vorher = p["status"].get("phase", projekte.PHASE_CURRICULUM_FERTIG)
+    projekte.set_phase(slug, projekte.PHASE_KOSTENPLAN_LAEUFT)
+    try:
+        runner.start(slug, "kostenplan", prompts.kostenplan_prompt(d),
+                     zurueck_phase=vorher)
+    except runner.LaufAktiv:
+        projekte.set_phase(slug, vorher)
+        raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
+    return {"ok": True, "phase": projekte.PHASE_KOSTENPLAN_LAEUFT}
+
+
+@app.post("/api/projekte/{slug}/go")
+async def api_go(slug: str, body: dict | None = None):
+    """Freigabe-Gate: optionale Medien-Änderungen einarbeiten, dann freigeben.
+
+    Ohne overrides: Phase direkt auf „freigegeben".
+    Mit overrides: Agent (Resume der Curriculum-Session) arbeitet die Änderungen
+    zuerst ins curriculum.md ein; bei Erfolg setzt der Runner „freigegeben".
+    """
+    p = _projekt_oder_404(slug)
+    d = projekte.projekt_dir(slug)
+    if not (d / "curriculum.md").is_file():
+        raise HTTPException(404, "Noch kein curriculum.md vorhanden")
+    if runner.laeuft(slug):
+        raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
+    overrides = (body or {}).get("medium_overrides") or {}
+    if not isinstance(overrides, dict):
+        raise HTTPException(400, "medium_overrides muss ein Objekt sein")
+    overrides = {str(k).strip(): str(v).strip().upper()
+                 for k, v in overrides.items() if str(v).strip()}
+    projekte.set_medium_overrides(slug, overrides)
+    if not overrides:
+        projekte.set_phase(slug, projekte.PHASE_FREIGEGEBEN)
+        return {"ok": True, "phase": projekte.PHASE_FREIGEGEBEN, "resume": False}
+    # „von→zu"-Zeilen für den Prompt bauen (Original-Medium aus dem Parser)
+    bekannt = {e["level"]: e["medium"] for e in curriculum.parse_level(
+        (d / "curriculum.md").read_text(encoding="utf-8"))}
+
+    def _sortierschluessel(kv):
+        return (0, int(kv[0])) if kv[0].isdigit() else (1, 0)
+
+    aenderungen = [
+        f"Level {lvl}: {curriculum.normalisiere_medium(bekannt.get(lvl, '?'))}"
+        f"→{neu}"
+        for lvl, neu in sorted(overrides.items(), key=_sortierschluessel)]
+    session_id = p["status"].get("sessions", {}).get("curriculum")
+    # Session nur nutzen, wenn claude sie unter diesem Arbeitsverzeichnis
+    # wirklich kennt — sonst frischer Lauf mit Lese-Anweisung im Prompt
+    if session_id and not runner.session_verfuegbar(session_id, d):
+        session_id = None
+    prompt = prompts.freigabe_prompt(aenderungen, d, hat_session=bool(session_id))
+    vorher = p["status"].get("phase", projekte.PHASE_CURRICULUM_FERTIG)
+    projekte.set_phase(slug, projekte.PHASE_FREIGABE_LAEUFT)
+    try:
+        runner.start(slug, "freigabe", prompt, session_id=session_id)
+    except runner.LaufAktiv:
+        projekte.set_phase(slug, vorher)
+        raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
+    return {"ok": True, "phase": projekte.PHASE_FREIGABE_LAEUFT,
+            "resume": bool(session_id)}
 
 
 @app.get("/")

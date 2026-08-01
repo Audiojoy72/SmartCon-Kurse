@@ -107,6 +107,9 @@ const PHASEN_LABEL = {
   briefing: "Briefing",
   curriculum_laeuft: "Curriculum läuft …",
   curriculum_fertig: "Curriculum fertig",
+  kostenplan_laeuft: "Kostenplan läuft …",
+  freigabe_laeuft: "Freigabe läuft …",
+  freigegeben: "Freigegeben",
   fehler: "Fehler",
 };
 
@@ -244,6 +247,7 @@ async function oeffneProjekt(slug) {
   aktualisiereStatuszeile(p);
   sseVerbinden(slug);
   ladeCurriculum();
+  ladeGate(p);
 }
 
 function aktualisiereStatuszeile(p) {
@@ -304,6 +308,7 @@ function sseVerbinden(slug) {
       logZeile(`✅ <b>Fertig</b> (${ev.dauer}s)<br>${esc(ev.text || "").replace(/\n/g, "<br>")}`, "fertig");
       aktualisiereDetail();
       ladeCurriculum();
+      ladeGate();
       eventQuelle.close();
     } else if (ev.typ === "fehler") {
       logZeile(`❌ <b>Fehler:</b> ${esc(ev.text)}`, "fehler");
@@ -377,3 +382,177 @@ document.getElementById("btn-kommentar-send").addEventListener("click", async ()
 });
 
 ladeProjekte();
+
+// ==========================================================================
+// Freigabe-Gate
+// ==========================================================================
+
+// Zustand des Gates: vom Parser vorbelegte Medien, gesammelte Änderungen
+// (medium_overrides), Kostenplan und Guthaben
+const gateZustand = { level: [], overrides: {}, kosten: null, guthaben: null };
+
+// Phasen, in denen das Gate sichtbar ist (curriculum_fertig oder später)
+const GATE_PHASEN = ["curriculum_fertig", "kostenplan_laeuft",
+                     "freigabe_laeuft", "freigegeben"];
+const MEDIUM_OPTIONEN = ["FILM", "ANIMATION", "BILD"];
+
+function mediumNorm(m) {
+  const u = (m || "").toUpperCase();
+  for (const k of MEDIUM_OPTIONEN) if (u.includes(k)) return k;
+  return u;
+}
+
+function fmtCredits(n) {
+  return Number(n).toLocaleString("de-DE", { maximumFractionDigits: 1 });
+}
+
+async function ladeGate(projekt) {
+  const gate = document.getElementById("gate");
+  if (!aktuellerSlug) return;
+  if (!projekt) {
+    const res = await fetch(`/api/projekte/${aktuellerSlug}`);
+    if (!res.ok) return;
+    projekt = await res.json();
+  }
+  const sichtbar = projekt.hat_curriculum &&
+                   GATE_PHASEN.includes(projekt.status.phase);
+  gate.hidden = !sichtbar;
+  if (!sichtbar) return;
+  const res = await fetch(`/api/projekte/${aktuellerSlug}/gate`);
+  if (!res.ok) return;
+  const data = await res.json();
+  gateZustand.level = data.level || [];
+  gateZustand.kosten = data.kosten;
+  gateZustand.guthaben = data.guthaben;
+  gateZustand.overrides = {};  // nach Reload neu sammeln
+  rendereLevelTabelle();
+  rendereKosten();
+  document.getElementById("gate-hinweis").textContent =
+    projekt.status.phase === "freigegeben"
+      ? "Freigegeben — die Produktion folgt mit dem nächsten Ausbau."
+      : "";
+}
+
+function rendereLevelTabelle() {
+  const box = document.getElementById("gate-level");
+  if (!gateZustand.level.length) {
+    box.innerHTML = "<p class='muted'>Keine Level-Übersicht im curriculum.md gefunden.</p>";
+    return;
+  }
+  const tabelle = document.createElement("table");
+  tabelle.className = "gate-tabelle";
+  tabelle.innerHTML =
+    "<thead><tr><th>Level</th><th>Lernziel</th><th>Medium</th><th>Interaktion</th></tr></thead>";
+  const tbody = document.createElement("tbody");
+  for (const e of gateZustand.level) {
+    const original = mediumNorm(e.medium);
+    const optionen = MEDIUM_OPTIONEN.includes(original) || !original
+      ? MEDIUM_OPTIONEN : [original, ...MEDIUM_OPTIONEN];
+    const lernziel = e.lernziel.length > 80
+      ? e.lernziel.slice(0, 80) + " …" : e.lernziel;
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      `<td>${esc(e.level)}</td>` +
+      `<td title="${esc(e.lernziel)}">${esc(lernziel)}</td>` +
+      `<td><select data-level="${esc(e.level)}" data-original="${esc(original)}">` +
+      optionen.map((o) =>
+        `<option value="${o}"${o === original ? " selected" : ""}>${o}</option>`
+      ).join("") +
+      `</select></td>` +
+      `<td>${esc(e.interaktion)}</td>`;
+    tbody.appendChild(tr);
+  }
+  tabelle.appendChild(tbody);
+  box.innerHTML = "";
+  box.appendChild(tabelle);
+  // Geänderte Dropdowns als medium_overrides sammeln
+  tabelle.querySelectorAll("select").forEach((sel) => {
+    sel.addEventListener("change", () => {
+      if (sel.value === sel.dataset.original) {
+        delete gateZustand.overrides[sel.dataset.level];
+      } else {
+        gateZustand.overrides[sel.dataset.level] = sel.value;
+      }
+    });
+  });
+}
+
+function rendereKosten() {
+  const box = document.getElementById("gate-kosten");
+  const { kosten, guthaben } = gateZustand;
+  if (!kosten) {
+    box.innerHTML = "<p class='muted'>Noch kein Kostenplan vorhanden — " +
+      "„Kostenplan (neu) berechnen“ startet den Agenten.</p>";
+    return;
+  }
+  const zeilen = (kosten.posten || []).map((p) =>
+    `<tr><td>${esc(p.typ || "")}</td><td>${esc(p.beschreibung || "")}</td>` +
+    `<td class="zahl">${fmtCredits(p.anzahl ?? 0)}</td>` +
+    `<td class="zahl">${fmtCredits(p.credits_je ?? 0)}</td>` +
+    `<td class="zahl">${fmtCredits(p.credits_summe ?? 0)}</td></tr>`).join("");
+  const summe = kosten.summe ?? 0;
+  let urteil;
+  if (typeof guthaben !== "number") {
+    urteil = `<div class="gate-urteil unbekannt">Guthaben nicht abrufbar — ` +
+      `Higgsfield-CLI prüfen (System-Check).</div>`;
+  } else if (guthaben >= summe) {
+    urteil = `<div class="gate-urteil reicht">Guthaben reicht ` +
+      `(${fmtCredits(guthaben)} Credits verfügbar)</div>`;
+  } else {
+    urteil = `<div class="gate-urteil reicht-nicht">Guthaben reicht NICHT — ` +
+      `Differenz ${fmtCredits(summe - guthaben)} Credits</div>`;
+  }
+  box.innerHTML =
+    `<table class="gate-tabelle"><thead><tr>` +
+    `<th>Typ</th><th>Beschreibung</th><th>Anzahl</th><th>Credits je</th><th>Summe</th>` +
+    `</tr></thead><tbody>${zeilen}</tbody></table>` +
+    `<div class="gate-summe">Geschätzte Summe: ${fmtCredits(summe)} Credits</div>` +
+    `<div class="muted">Aktuelles Higgsfield-Guthaben: ` +
+    (typeof guthaben === "number" ? fmtCredits(guthaben) + " Credits" : "unbekannt") +
+    `</div>` + urteil;
+}
+
+document.getElementById("btn-kostenplan").addEventListener("click", async () => {
+  if (!aktuellerSlug) return;
+  const hinweis = document.getElementById("gate-hinweis");
+  const res = await fetch(`/api/projekte/${aktuellerSlug}/gate/kostenplan`,
+    { method: "POST" });
+  if (!res.ok) {
+    const fehler = await res.json().catch(() => ({}));
+    hinweis.textContent = "Fehler: " + (fehler.detail || res.status);
+    return;
+  }
+  hinweis.textContent = "Kostenplan wird berechnet — Fortschritt siehe Log oben …";
+  document.getElementById("lauf-log").innerHTML = "";
+  sseVerbinden(aktuellerSlug);
+  aktualisiereDetail();
+});
+
+document.getElementById("btn-go").addEventListener("click", async () => {
+  if (!aktuellerSlug) return;
+  const hinweis = document.getElementById("gate-hinweis");
+  const { kosten, guthaben } = gateZustand;
+  if (kosten && typeof guthaben === "number" && guthaben < (kosten.summe ?? 0)) {
+    if (!confirm("Guthaben reicht nicht. Trotzdem freigeben?")) return;
+  }
+  const res = await fetch(`/api/projekte/${aktuellerSlug}/go`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ medium_overrides: gateZustand.overrides }),
+  });
+  if (!res.ok) {
+    const fehler = await res.json().catch(() => ({}));
+    hinweis.textContent = "Fehler: " + (fehler.detail || res.status);
+    return;
+  }
+  const data = await res.json();
+  if (data.phase === "freigabe_laeuft") {
+    // Agent arbeitet die Medien-Änderungen ein — Fortschritt im Log verfolgen
+    hinweis.textContent = "Agent arbeitet die Medien-Änderungen ein …";
+    document.getElementById("lauf-log").innerHTML = "";
+    sseVerbinden(aktuellerSlug);
+  } else {
+    hinweis.textContent = "Freigegeben — die Produktion folgt mit dem nächsten Ausbau.";
+  }
+  aktualisiereDetail();
+});

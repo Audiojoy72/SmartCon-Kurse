@@ -3,10 +3,12 @@
 Struktur pro Projekt:
     brief.json      Briefing-Felder aus dem Formular
     status.json     phase, sessions (Session-IDs je Phase für Resume),
-                    erstellt_am, geaendert_am, ggf. letzter_fehler
+                    erstellt_am, geaendert_am, ggf. letzter_fehler,
+                    ggf. medium_overrides (Medien-Änderungen aus dem Gate)
     design.md       optional, hochgeladen
     material/       optional, hochgeladene Quelldateien
     curriculum.md   Artefakt des Agenten (Teil 1)
+    kosten.json     Kostenplan des Agenten (Freigabe-Gate)
     events.jsonl    Fortschritts-Events der Läufe (für SSE-Replay)
 """
 
@@ -22,10 +24,13 @@ PROJECTS = ROOT / "projects"
 
 _lock = threading.Lock()
 
-# Phasen der App-State-Machine (v1: nur bis Curriculum-Gate)
+# Phasen der App-State-Machine (bis Freigabe-Gate; Produktion folgt später)
 PHASE_BRIEFING = "briefing"
 PHASE_CURRICULUM_LAEUFT = "curriculum_laeuft"
 PHASE_CURRICULUM_FERTIG = "curriculum_fertig"
+PHASE_KOSTENPLAN_LAEUFT = "kostenplan_laeuft"
+PHASE_FREIGABE_LAEUFT = "freigabe_laeuft"
+PHASE_FREIGEGEBEN = "freigegeben"
 PHASE_FEHLER = "fehler"
 
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
@@ -125,6 +130,15 @@ def set_phase(slug: str, phase: str, fehler: str | None = None) -> None:
         status["letzter_fehler"] = fehler
     elif phase != PHASE_FEHLER:
         status.pop("letzter_fehler", None)
+    save_status(slug, status)
+
+
+def set_medium_overrides(slug: str, overrides: dict) -> None:
+    """Hält die Medien-Änderungen aus dem Freigabe-Gate im Status fest."""
+    status = load_status(slug)
+    if status is None:
+        return
+    status["medium_overrides"] = overrides
     save_status(slug, status)
 
 

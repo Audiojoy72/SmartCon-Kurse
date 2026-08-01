@@ -17,6 +17,7 @@ import queue
 import subprocess
 import threading
 import time
+from pathlib import Path
 
 from . import config, projekte
 
@@ -24,9 +25,13 @@ from . import config, projekte
 # weil cwd = Projektordner und permission-mode acceptEdits)
 ALLOWED_TOOLS = "Bash,Edit,Write,Read,Glob,Grep,WebSearch,WebFetch"
 
-# Nach erfolgreichem Lauf: Phase der App-State-Machine je Lauf-Typ
+# Nach erfolgreichem Lauf: Phase der App-State-Machine je Lauf-Typ.
+# „kostenplan" ist nicht dabei — er kehrt zur Phase vor dem Lauf zurück
+# (siehe _phase_nach_erfolg), damit ein bereits freigegebenes Projekt
+# nicht auf „curriculum_fertig" zurückfällt.
 PHASE_NACH_ERFOLG = {
     "curriculum": projekte.PHASE_CURRICULUM_FERTIG,
+    "freigabe": projekte.PHASE_FREIGEGEBEN,
 }
 
 _laeufe: dict[str, dict] = {}          # slug -> {phase, gestartet}
@@ -44,6 +49,20 @@ class LaufAktiv(Exception):
 def laeuft(slug: str) -> bool:
     with _laeufe_lock:
         return slug in _laeufe
+
+
+def session_verfuegbar(session_id: str | None, cwd) -> bool:
+    """Prüft, ob claude die Session unter diesem Arbeitsverzeichnis kennt.
+
+    claude legt Sessions als ~/.claude/projects/<pfad-mit-strichen>/<id>.jsonl
+    ab — ein Resume mit fremder/veralteter ID bricht sofort mit
+    „No conversation found" ab, deshalb vorher prüfen.
+    """
+    if not session_id or cwd is None:
+        return False
+    pfad_slug = str(cwd).replace("/", "-")
+    return (Path.home() / ".claude" / "projects" / pfad_slug
+            / f"{session_id}.jsonl").is_file()
 
 
 def abonnieren(slug: str) -> queue.Queue:
@@ -91,18 +110,31 @@ def _emit(slug: str, typ: str, **daten) -> dict:
     return ev
 
 
-def start(slug: str, phase: str, prompt: str, session_id: str | None = None) -> None:
+def start(slug: str, phase: str, prompt: str, session_id: str | None = None,
+          zurueck_phase: str | None = None) -> None:
     """Startet den Agenten-Lauf in einem Hintergrund-Thread.
 
     Wirft LaufAktiv, wenn für das Projekt schon ein Lauf aktiv ist.
+    zurueck_phase: Phase, zu der der Lauf-Typ „kostenplan" nach Erfolg
+    zurückkehrt (die Phase, die vor dem Start aktiv war).
     """
     with _laeufe_lock:
         if slug in _laeufe:
             raise LaufAktiv(slug)
-        _laeufe[slug] = {"phase": phase, "gestartet": time.time()}
+        _laeufe[slug] = {"phase": phase, "gestartet": time.time(),
+                         "zurueck": zurueck_phase}
     t = threading.Thread(
         target=_fuehre_aus, args=(slug, phase, prompt, session_id), daemon=True)
     t.start()
+
+
+def _phase_nach_erfolg(slug: str, phase: str) -> str | None:
+    """Phase, die nach einem erfolgreichen Lauf gesetzt wird (None = keine)."""
+    if phase == "kostenplan":
+        # Der Kostenplan ändert den Gate-Status nicht — zurück zur Vorher-Phase
+        return (_laeufe.get(slug, {}).get("zurueck")
+                or projekte.PHASE_CURRICULUM_FERTIG)
+    return PHASE_NACH_ERFOLG.get(phase)
 
 
 def _kommando(backend: str, prompt: str, session_id: str | None) -> list[str]:
@@ -160,7 +192,7 @@ def _parse_claude_zeile(slug: str, phase: str, zeile: str,
         zustand["fertig_gesehen"] = True
         if ev.get("subtype") == "success":
             dauer = round(ev.get("duration_ms", 0) / 1000)
-            neue_phase = PHASE_NACH_ERFOLG.get(phase)
+            neue_phase = _phase_nach_erfolg(slug, phase)
             if neue_phase:
                 projekte.set_phase(slug, neue_phase)
             _emit(slug, "fertig", text=ev.get("result", ""), dauer=dauer)
@@ -208,7 +240,7 @@ def _fuehre_aus(slug: str, phase: str, prompt: str,
             if proc.stderr is not None:
                 fehltext = proc.stderr.read().strip()
             if rc == 0:
-                neue_phase = PHASE_NACH_ERFOLG.get(phase)
+                neue_phase = _phase_nach_erfolg(slug, phase)
                 if neue_phase:
                     projekte.set_phase(slug, neue_phase)
                 dauer = round(time.time() - _laeufe.get(slug, {}).get(
