@@ -506,6 +506,25 @@ alle Medien als Base64-Data-URIs einsetzen. Architektur:
   bei anderem Preset/design.md nur die Tokens im `:root` austauschen und danach den
   Kontrast nachrechnen.
 
+#### Diagramme und Grafiken: nichts absolut positionieren
+
+Eigene Schaubilder (Venn, Zeitstrahl, Pyramide, Kreislauf) **nie** aus absolut
+positionierten Kästen bauen. Das sieht bei genau einer Fensterbreite richtig aus und
+verrutscht bei jeder anderen — Kreise driften auseinander, Beschriftungen legen sich
+übereinander, und niemand merkt es, weil der Browser-Test nur eine Breite prüft.
+
+- **Fließendes Layout:** Flexbox oder Grid, Überlappungen über negative `margin`,
+  nicht über `position: absolute` + `left: %`. Prozentuale Positionen und feste
+  Pixelgrößen niemals mischen — genau daraus entsteht das Verrutschen.
+- **Oder Inline-SVG** mit `viewBox` und `width: 100%`: skaliert von selbst mit,
+  Beschriftungen bleiben, wo sie hingehören. Für alles Geometrische die bessere Wahl.
+- **Kein Text über Text.** Ein zentrales Label („gilt für alle") gehört unter oder
+  neben die Formen, nicht als Overlay darüber — sonst verdeckt es sie.
+- **Bei drei Breiten gegenprüfen** (Phase 10): 390 px, 800 px und 1400 px. An allen
+  dreien muss jede Beschriftung vollständig lesbar sein und darf nichts überdecken.
+  Ein `@media`-Zweig für Handys reicht nicht — die Desktop-Breiten sind der häufigere
+  Fehlerfall.
+
 ## Phase 10 — Browser-Test (Pflicht, vollständig)
 
 Lokal serven (`python3 -m http.server`), dann komplett durchklicken:
@@ -516,10 +535,19 @@ Lokal serven (`python3 -m http.server`), dann komplett durchklicken:
 5. Beim Preset `kostenlos` zusätzlich: Schritt-Steuerung vollständig durchklicken
    (vor/zurück, Pfeiltasten/Enter, Schrittzähler) und prüfen, dass beim Verlassen
    einer Szene alle Elemente sichtbar werden
-6. Kontrast der tatsächlich gesetzten Farben nachrechnen:
+6. **Layout bei 390 px, 800 px und 1400 px prüfen** — die Seite darf nie horizontal
+   scrollen, und in eigenen Schaubildern darf sich nichts überlappen. Schnelltest je
+   Breite in der Konsole:
+   ```js
+   [...document.querySelectorAll('body *')].filter(e => {
+     const r = e.getBoundingClientRect();
+     return r.width && r.right > innerWidth + 1;
+   }).map(e => e.className)          // muss [] sein
+   ```
+7. Kontrast der tatsächlich gesetzten Farben nachrechnen:
    `python3 scripts/kontrast.py "<akzent>" "<panel>"` (mit den Werten des Presets bzw.
    der design.md aufrufen — Akzent auf Hintergrund muss ≥ 4,5:1 liegen)
-7. Dateigröße prüfen; Server stoppen, Datei ausliefern
+8. Dateigröße prüfen; Server stoppen, Datei ausliefern
 
 ## Phase 11 — Benennen und ausliefern
 
