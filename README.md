@@ -34,6 +34,9 @@ Danke an **Julian Ivanov** für den tollen Skill.
   herunterladen; Nachbearbeiten per Phasen-Rücksprung; Löschen mit Rückfrage
 - **System-Check**: prüft alle Abhängigkeiten live — jede Kachel ist anklickbar und
   zeigt eine Schritt-für-Schritt-Installationsanleitung
+- **Auch vom Handy bedienbar**: die Oberfläche ist auf schmale Displays ausgelegt,
+  die Projektliste aktualisiert sich während eines Laufs von selbst — man kann die
+  Seite verlassen und später wieder reinschauen, der Agent läuft im Server weiter
 
 ## So läuft eine Schulung durch
 

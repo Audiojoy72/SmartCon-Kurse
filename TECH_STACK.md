@@ -34,12 +34,22 @@ Dateisystem (`config.json`, `projects/<slug>/`).
 Server-Sent Events (`GET /api/projekte/{slug}/events`, spielt `events.jsonl`
 beim Reconnect nach). Verbrauchs-Zähler per 30-s-Polling.
 
+Die Projektliste pollt sich alle 15 s selbst nach, solange irgendein Projekt in
+einer `*_laeuft`-Phase steht, und hört von allein wieder auf — ohne das bliebe
+„Produktion läuft …" bis zum manuellen Reload stehen (SSE hängt nur an der
+Detailansicht).
+
+Bedienbar auch vom Handy: geprüft bei 390 px und 320 px, kein horizontaler
+Überlauf. Breite Tabellen (Level, Kostenplan) scrollen in einem eigenen Kasten
+`.tabelle-scroll`, statt die Seite auseinanderzuziehen.
+
 ## API-Überblick
 
 | Endpunkt | Zweck |
 |---|---|
 | `GET /api/preflight` · `GET/POST /api/config` | System-Check, Einstellungen |
 | `GET /api/projekte` · `POST /api/projekte` · `GET /api/projekte/{slug}` | Projektliste, Anlage (multipart), Detail |
+| `DELETE /api/projekte/{slug}` | Schulung samt Ordner entfernen (409, solange ein Agent läuft) |
 | `GET /api/presets` | Stil-Presets aus `skill/schulung/reference/styles/` |
 | `POST …/curriculum/starten` · `GET/PUT …/curriculum` · `POST …/curriculum/kommentar` | Curriculum-Phase inkl. Editor + Agenten-Kommentar |
 | `GET …/gate` · `POST …/gate/kostenplan` · `POST …/go` | Freigabe-Gate: Level, Kosten, Guthaben, Go mit Medium-Overrides |
@@ -108,3 +118,17 @@ gesamt.**
 4. **pkill -f:** Suchstrings, die im eigenen Kommando vorkommen, killen die
    eigene Shell — Zeichenklassen verwenden (`app[.]main`).
 5. **Guthaben-Parsing:** „1082.5 credits" — Nachkommastellen nicht abschneiden.
+6. **Frontend-Cache:** Ohne `Cache-Control: no-cache` auf der Index-Route hält
+   ein Handy-Browser die alte `index.html` samt der darin stehenden
+   `?v=`-Verweise fest — Änderungen an CSS/JS bleiben dann unsichtbar, egal wie
+   oft man neu lädt. Bei jeder Frontend-Änderung das `?v=` in `index.html`
+   hochzählen.
+7. **`static/` liegt im Image**, nicht als Volume. Ein Frontend-Fix wird also
+   erst durch `docker compose build` dauerhaft. Läuft gerade eine Produktion,
+   ist Bauen tabu — dann `docker cp <datei> smartcon-schulungen:/app/…` in den
+   laufenden Container kopieren (wirkt sofort, überlebt aber kein Recreate).
+8. **Dateinamen aus dem Browser:** Beim Drag & Drop aus einem Browser-Tab
+   liefert der Browser den URL-kodierten Namen (`T%C3%9CV%20Vortrag.pptx`).
+   `projekte._dateiname()` dreht das zurück — und macht danach **erneut**
+   `Path(...).name`, weil `unquote` aus `%2F` ein `/` macht und der Upload
+   sonst aus dem Projektordner herausschreiben könnte.

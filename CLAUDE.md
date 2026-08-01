@@ -84,7 +84,11 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
 - Kein Framework im Frontend; keine neuen Python-Dependencies ohne Not.
 - Fehlerfälle: 404 Projekt unbekannt, 409 Agenten-Lauf aktiv, 400 Validierung.
 - Pro Projekt nur ein Agenten-Lauf gleichzeitig (`runner.laeuft`).
-- Dateipfade aus Nutzereingaben immer sanitizen (siehe Ergebnis-Endpunkte).
+- Dateipfade aus Nutzereingaben immer sanitizen (siehe Ergebnis-Endpunkte,
+  `projekte.loeschen()` und `projekte._dateiname()`).
+- Frontend muss auf dem Handy funktionieren: nach jeder UI-Änderung bei 390 px
+  und 320 px gegen horizontalen Überlauf prüfen. Flex-Zeilen brauchen
+  `flex-wrap`, breite Tabellen den Kasten `.tabelle-scroll`.
 
 ## Key Files
 
@@ -107,5 +111,13 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
   Shell — Zeichenklassen nutzen (`app[.]main`).
 - Guthaben hat Nachkommastellen („1082.5 credits") — Float parsen.
 - Container-Neustart killt laufende Produktionen — nie rebuilden, während ein
-  Agent arbeitet.
+  Agent arbeitet. Muss trotzdem ein Frontend-Fix sofort raus: `docker cp
+  static/app.js smartcon-schulungen:/app/static/app.js` wirkt ohne Neustart
+  (`static/` liegt im Image, nicht als Volume), überlebt aber kein Recreate —
+  nach der Produktion `docker compose build` nachziehen.
+- Läuft ein Agent noch? `projects/*/status.json` zeigt die Phase, die letzte
+  Zeile in `events.jsonl` den letzten Lebenszeichen-Zeitstempel.
+- Frontend-Änderung: `?v=` in `index.html` hochzählen. Die Index-Route liefert
+  `Cache-Control: no-cache`, sonst hält der Handy-Browser die alte Seite samt
+  alter Asset-Verweise fest.
 - Whisper-Tunnel (Referenz-Setup): systemd-User-Unit `whisper-tunnel.service`.
