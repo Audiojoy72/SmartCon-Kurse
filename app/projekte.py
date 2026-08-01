@@ -15,6 +15,7 @@ Struktur pro Projekt:
 
 import json
 import re
+import shutil
 import threading
 import unicodedata
 from datetime import datetime, timezone
@@ -239,6 +240,20 @@ def get(slug: str) -> dict | None:
         "material": sorted(p.name for p in mat.iterdir() if p.is_file())
                     if mat.is_dir() else [],
     }
+
+
+def loeschen(slug: str) -> bool:
+    """Entfernt den kompletten Projektordner. False, wenn es ihn nicht gibt.
+
+    projekt_dir() validiert den Slug gegen _SLUG_RE und liefert nur einen
+    existierenden Ordner unterhalb von PROJECTS — ohne diese Prüfung wäre
+    das rmtree hier ein Einfallstor.
+    """
+    d = projekt_dir(slug)
+    if not d:
+        return False
+    shutil.rmtree(d)
+    return True
 
 
 def material_dateien(slug: str) -> list[Path]:

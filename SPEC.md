@@ -27,10 +27,10 @@ selbstbeschreibend. Footer der App: **„AI-SmartCon – Matthias Geist"** und
 | 7 | Öffentlich vs. privat | **Neutrale Skill-Kopie lebt im App-Repo** (`skill/`). Der private smartcon-skills-Skill bleibt unangetastet. Defaults ohne persönliche Infrastruktur: lokales Whisper, Auslieferung = Download; DSS-KI/Nextcloud nur als optionale Config |
 | 8 | Curriculum-Eingriff | **Review + Markdown-Editor + Kommentar-Box**, dazu **Medium-Dropdown je Level** (Film/Animation/Bild/statisch) als Annotation beim Go |
 | 9 | Kosten | **Kosten-Dashboard am Gate**: Schätzung je Posten, Summe, Higgsfield-Guthaben, reicht/reicht-nicht; Live-Nachmessung per `generate cost` beim Go; Verbrauchs-Zähler während der Produktion, soweit aus dem Stream ableitbar |
-| 10 | Projektverwaltung | **Projektliste**, Ordner `projects/<slug>/` (Briefing, design.md, Figuren, curriculum.md, Medien, HTML, status.json), **Fortsetzen via Session-Resume** (`claude -r` / `kimi -r`), einzelne Phasen wiederholbar; kein Löschen aus der UI in v1 |
+| 10 | Projektverwaltung | **Projektliste**, Ordner `projects/<slug>/` (Briefing, design.md, Figuren, curriculum.md, Medien, HTML, status.json), **Fortsetzen via Session-Resume** (`claude -r` / `kimi -r`), einzelne Phasen wiederholbar; **Löschen aus der UI** (Button unten im Projekt, zweistufig bestätigt, entfernt den ganzen Ordner; gesperrt während ein Agent läuft) — nachgereicht am 01.08.2026, in v1 war das noch ausgeschlossen |
 | 11 | Setup | Name **„SmartCon-Schulungen"**, Ort `/media/synology/coding/AntiGravity/SmartCon-Schulungen`, **AGPL**, Doku deutsch |
 | 12 | Einstellungen | **Settings-Screen + Preflight-Ampel** (Backend-Wahl, Pfade, Higgsfield-Workspace, Default-design.md), gespeichert als `config.json` |
-| 13 | Nicht-Ziele v1 | kein Mehrnutzer, kein Login, kein Deployment; kein Budget-Deckel; keine strukturierte Curriculum-Bearbeitung; kein Löschen in der UI; kein Zertifikat; keine eigenen Generatoren; kein SCORM/LMS |
+| 13 | Nicht-Ziele v1 | kein Mehrnutzer, kein Login, kein Deployment; kein Budget-Deckel; keine strukturierte Curriculum-Bearbeitung; kein Zertifikat; keine eigenen Generatoren; kein SCORM/LMS |
 | 14 | History | **Projektliste = Archiv**: fertige Schulungen bleiben gelistet (Status, Datum, Credits); HTML im Projektordner, aus der History **aufrufbar und herunterladbar**; **Nachbearbeiten** = Rücksprung in eine Phase über App+Agent (nicht: HTML direkt editieren), mit Kosten-Hinweis bei produktionsrelevanten Änderungen |
 
 ## Architektur in einem Bild

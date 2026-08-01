@@ -269,6 +269,7 @@ async function oeffneProjekt(slug) {
   document.getElementById("detail-titel").textContent =
     p.briefing.thema || slug;
   aktualisiereStatuszeile(p);
+  loeschenZuruecksetzen();
   sseVerbinden(slug);
   ladeCurriculum();
   ladeGate(p);
@@ -349,6 +350,40 @@ document.getElementById("btn-detail-zurueck").addEventListener("click", () => {
   if (eventQuelle) eventQuelle.close();
   verbrauchPollingStoppen();
   aktuellerSlug = null;
+  zeigePanel("pv-liste");
+  ladeProjekte();
+});
+
+// --- Löschen (zweistufig: erst Nachfrage einblenden, dann wirklich löschen) ---
+
+function loeschenZuruecksetzen() {
+  document.getElementById("loeschen-nachfrage").hidden = true;
+  document.getElementById("btn-loeschen").hidden = false;
+  document.getElementById("loeschen-hinweis").textContent = "";
+}
+
+document.getElementById("btn-loeschen").addEventListener("click", () => {
+  document.getElementById("btn-loeschen").hidden = true;
+  document.getElementById("loeschen-nachfrage").hidden = false;
+});
+
+document.getElementById("btn-loeschen-nein").addEventListener("click",
+  loeschenZuruecksetzen);
+
+document.getElementById("btn-loeschen-ja").addEventListener("click", async () => {
+  if (!aktuellerSlug) return;
+  const hinweis = document.getElementById("loeschen-hinweis");
+  hinweis.textContent = "Wird gelöscht …";
+  const res = await fetch(`/api/projekte/${aktuellerSlug}`, { method: "DELETE" });
+  if (!res.ok) {
+    const fehler = await res.json().catch(() => ({}));
+    hinweis.textContent = "Fehler: " + (fehler.detail || res.status);
+    return;
+  }
+  if (eventQuelle) eventQuelle.close();
+  verbrauchPollingStoppen();
+  aktuellerSlug = null;
+  loeschenZuruecksetzen();
   zeigePanel("pv-liste");
   ladeProjekte();
 });

@@ -31,7 +31,7 @@ Danke an **Julian Ivanov** für den tollen Skill.
 - **Produktion**: Live-Fortschritt (SSE), Verbrauchs-Zähler, Preflight vor jeder
   kostenpflichtigen Aktion, Abbruch statt „so weit es reicht"
 - **History**: fertige Schulungen bleiben gelistet; Ergebnis im Browser ansehen oder
-  herunterladen; Nachbearbeiten per Phasen-Rücksprung
+  herunterladen; Nachbearbeiten per Phasen-Rücksprung; Löschen mit Rückfrage
 - **System-Check**: prüft alle Abhängigkeiten live — jede Kachel ist anklickbar und
   zeigt eine Schritt-für-Schritt-Installationsanleitung
 
@@ -117,7 +117,9 @@ Alle Einstellungen im UI (Tab „Einstellungen"), gespeichert in `config.json`
 Pro Schulung ein Ordner `projects/<slug>/` (gitignored): `brief.json`,
 `status.json` (Phase, Agenten-Sessions, Guthaben), `curriculum.md`, `kosten.json`,
 `events.jsonl` (Fortschritts-Protokoll), `material/`, `medien/`, fertige HTML.
-Kein Löschen aus der UI — bei Bedarf den Ordner per Hand entfernen.
+Löschen geht direkt in der App: im Projekt ganz unten „Schulung löschen", nach
+einer Rückfrage verschwindet der komplette Ordner. Während ein Agent arbeitet,
+ist das gesperrt.
 
 ## Architektur in Kürze
 

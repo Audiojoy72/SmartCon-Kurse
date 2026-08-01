@@ -6,7 +6,7 @@
 <title>SmartCon-Schulungen</title>
 <!-- ?v= bei jeder Frontend-Änderung hochzählen — sonst hängt auf dem Handy
      die alte Fassung im Cache und der Fix ist unsichtbar. -->
-<link rel="stylesheet" href="/static/style.css?v=2">
+<link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
 <header>
@@ -168,6 +168,22 @@
            Freigabe die Produktion neu starten. Produktionsrelevante Änderungen
            kosten erneut Credits.</p>
       </div>
+
+      <!-- Löschen: immer sichtbar, ganz unten, zweistufig bestätigt -->
+      <div id="loeschen">
+        <button id="btn-loeschen" class="gefahr">Schulung löschen</button>
+        <div id="loeschen-nachfrage" hidden>
+          <p class="warnhinweis">Wirklich löschen? Briefing, Curriculum, alle
+             erzeugten Medien und die fertige HTML-Datei werden aus dem System
+             entfernt. Das lässt sich nicht rückgängig machen — schon
+             verbrauchte Credits bekommst du dadurch nicht zurück.</p>
+          <div class="aktionen">
+            <button id="btn-loeschen-ja" class="gefahr">Ja, endgültig löschen</button>
+            <button id="btn-loeschen-nein">Abbrechen</button>
+            <span id="loeschen-hinweis" class="muted"></span>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -238,9 +254,12 @@
 </main>
 
 <footer>
-  AI-SmartCon – Matthias Geist · Danke an Julian Ivanov für den tollen Skill
+  <a href="https://www.ai-smartcon.de" target="_blank" rel="noopener">AI-SmartCon</a>
+  – Matthias Geist · Danke an
+  <a href="https://www.youtube.com/@julian-ivanov" target="_blank" rel="noopener">Julian Ivanov</a>
+  für den tollen Skill
 </footer>
 
-<script src="/static/app.js?v=2"></script>
+<script src="/static/app.js?v=3"></script>
 </body>
 </html>

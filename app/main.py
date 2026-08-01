@@ -103,6 +103,16 @@ def api_projekt(slug: str):
     return _projekt_oder_404(slug)
 
 
+@app.delete("/api/projekte/{slug}")
+def api_projekt_loeschen(slug: str):
+    """Entfernt die Schulung samt Ordner — Medien, HTML und Verlauf inklusive."""
+    _projekt_oder_404(slug)
+    if runner.laeuft(slug):
+        raise HTTPException(409, "Agent läuft — erst abwarten, dann löschen")
+    projekte.loeschen(slug)
+    return {"ok": True}
+
+
 @app.post("/api/projekte/{slug}/curriculum/starten")
 def api_curriculum_starten(slug: str):
     p = _projekt_oder_404(slug)
