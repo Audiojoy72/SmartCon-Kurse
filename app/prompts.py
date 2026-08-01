@@ -1,6 +1,7 @@
 """Prompt-Templates — die App besitzt die State-Machine, der Agent bekommt pro
 Phase einen Arbeitsauftrag, der auf die SKILL.md im Repo verweist."""
 
+import json
 import re
 import shlex
 from pathlib import Path
@@ -10,7 +11,7 @@ SKILL_MD = ROOT / "skill" / "schulung" / "SKILL.md"
 SKILL_SCRIPTS = ROOT / "skill" / "schulung" / "scripts"
 STYLES_DIR = ROOT / "skill" / "schulung" / "reference" / "styles"
 
-PRESET_NAMEN = ("cinematic", "comic", "corporate", "statisch")
+PRESET_NAMEN = ("cinematic", "comic", "corporate", "statisch", "kostenlos")
 
 
 def presets() -> list[dict]:
@@ -76,6 +77,22 @@ def curriculum_prompt(projekt_dir: Path, brief: dict,
                         for name in material_dateien))
     else:
         material_zeile = "Es wurde kein Ausgangsmaterial hochgeladen."
+    ki_medien = (False if stil == "kostenlos"
+                 else bool(brief.get("ki_medien", True)))
+    if ki_medien:
+        medien_block = ""
+        abschluss_mix = "geplanter Medienmix (FILM/ANIMATION/BILD) und grobe Credit-Schätzung"
+    else:
+        medien_block = """
+## KI-Medien: Nein — medienloses Curriculum (0 Credits)
+
+Der Nutzer hat KI-Medien (Higgsfield) abgeschaltet. Folge im Skill dem
+Abschnitt „Medienloser Zweig — Preset kostenlos": Der Medienplan ALLER Level
+ist „schrittgesteuerte HTML-Szene" — KEIN FILM, KEIN BILD (KI), KEIN Voiceover.
+Das Voiceover-Skript je Level wird als Sprechertext/Bildschirmtext der Szene
+ausformuliert (nicht gestrichen). Die Produktionsschätzung lautet 0 Credits.
+"""
+        abschluss_mix = "Level-Anzahl und die Bestätigung, dass alle Level medienlos (0 Credits) geplant sind"
     return f"""Du bist der Schulungs-Agent der App „SmartCon-Schulungen". Dein
 Arbeitsverzeichnis ist der Projektordner: {projekt_dir}
 
@@ -91,7 +108,7 @@ oder andere kostenpflichtige Generierung auf.
 Das Briefing ist vollständig — stelle KEINE Rückfragen (kein AskUserQuestion).
 Wo etwas fehlt, triff eine sinnvolle Annahme und dokumentiere sie sichtbar im
 Steckbrief des curriculum.md.
-
+{medien_block}
 ## Briefing
 
 {_briefing_block(brief)}
@@ -109,9 +126,7 @@ Steckbrief des curriculum.md.
 
 ## Abschluss
 
-Beende den Lauf mit einer kurzen Zusammenfassung als letztem Text: Anzahl der
-Level, geplanter Medienmix (FILM/ANIMATION/BILD) und grobe Credit-Schätzung
-für die spätere Produktion."""
+Beende den Lauf mit einer kurzen Zusammenfassung als letztem Text: {abschluss_mix}."""
 
 
 def kommentar_prompt(kommentar: str, projekt_dir: Path,
@@ -241,6 +256,32 @@ def whisper_remote_env(cfg: dict) -> dict[str, str]:
     return {"WHISPER_REMOTE_CMD": " ".join(teile)}
 
 
+def _projekt_stil(projekt_dir: Path) -> str:
+    """Liest das gewählte Preset aus der brief.json des Projekts."""
+    try:
+        brief = json.loads(
+            (projekt_dir / "brief.json").read_text(encoding="utf-8"))
+        return str(brief.get("stil", "")).strip()
+    except (OSError, json.JSONDecodeError):
+        return ""
+
+
+def _projekt_ki_medien(projekt_dir: Path) -> bool:
+    """Sollen KI-Medien (Higgsfield) genutzt werden?
+
+    Nein, wenn der Schalter im Briefing auf „nein" steht ODER das Preset
+    „kostenlos" gewählt wurde (das impliziert medienlos). Default: ja.
+    """
+    try:
+        brief = json.loads(
+            (projekt_dir / "brief.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return True
+    if str(brief.get("stil", "")).strip() == "kostenlos":
+        return False
+    return bool(brief.get("ki_medien", True))
+
+
 def produktion_prompt(projekt_dir: Path, whisper_remote: bool) -> str:
     """Arbeitsauftrag für Teil 2 (Phasen 2.5–11): die komplette Produktion."""
     if whisper_remote:
@@ -254,16 +295,40 @@ def produktion_prompt(projekt_dir: Path, whisper_remote: bool) -> str:
             "Für die Transkription ist WHISPER_REMOTE_CMD NICHT gesetzt —\n"
             "scripts/transkribieren.sh nutzt dann das lokal installierte\n"
             "whisper (Default-Weg des Skills).")
-    return f"""Du bist der Produktions-Agent der App „SmartCon-Schulungen". Dein
-Arbeitsverzeichnis ist der Projektordner: {projekt_dir}
+    stil = _projekt_stil(projekt_dir)
+    if not _projekt_ki_medien(projekt_dir):
+        kostenlos_block = f"""
+## KI-Medien: Nein (0 Credits — medienloser Zweig)
 
-Lies zuerst diese Skill-Anleitung vollständig: {SKILL_MD}
-Arbeite danach TEIL 2 vollständig ab — von Phase 2.5 (Preflight) bis Phase 11
-(Auslieferung). Quelle ist ausschließlich die Datei curriculum.md in diesem
-Projektordner: was produziert wird, steht dort. Nicht improvisieren, keine
-Rückfragen (kein AskUserQuestion).
+Dieses Projekt wird OHNE Higgsfield produziert (Schalter „KI-Medien" auf
+Nein im Briefing oder Preset „kostenlos" — steht so in der brief.json).
+Das hat drei harte Konsequenzen:
 
-## Reihenfolge (verbindlich)
+1. Preflight im Kostenlos-Modus aufrufen (Higgsfield wird dann nicht gebraucht):
+     SCHULUNG_KOSTENLOS=1 bash {SKILL_SCRIPTS / 'preflight.sh'}
+2. KEINE higgsfield-Aufrufe — weder „generate create" noch „generate cost"
+   noch „account status". Es werden 0 Credits ausgegeben.
+3. TEIL 2 läuft im medienlosen Zweig gemäß SKILL.md (Abschnitt „Medienloser
+   Zweig — Preset kostenlos"): Die Phasen 3, 4, 5, 7 und 8 ENTFALLEN. Ablauf:
+   Phase 2.5 (Preflight, Kostenlos-Modus) → Phase 6 (schrittgesteuerte
+   HTML-Szenen ohne Tonspur; das Voiceover-Skript wird Bildschirmtext) →
+   Phase 9 (HTML ohne <video>/<audio>, ohne „Ton an!"-Hinweis) → Phase 10
+   (Browser-Test inkl. Schritt-Steuerung) → Phase 11 (Auslieferung).
+"""
+        reihenfolge = f"""## Reihenfolge (verbindlich)
+
+1. ZUERST der Preflight im Kostenlos-Modus:
+     SCHULUNG_KOSTENLOS=1 bash {SKILL_SCRIPTS / 'preflight.sh'}
+   Bricht der Preflight ab (Exit-Code ungleich 0): sofort stoppen und klar
+   melden, was fehlt.
+2. KEINE Transkription, KEINE Kostenkontrolle — es gibt kein Voiceover und
+   keine Generierungen (0 Credits).
+3. Auslieferung (Phase 11): Die fertige HTML-Datei bleibt im Projektordner
+   ({projekt_dir}). NICHT irgendwo hochladen — kein rclone, kein
+   Filesharing-Dienst, kein externer Ablageort."""
+    else:
+        kostenlos_block = ""
+        reihenfolge = f"""## Reihenfolge (verbindlich)
 
 1. ZUERST der Preflight — vor jeder kostenpflichtigen Aktion:
      bash {SKILL_SCRIPTS / 'preflight.sh'}
@@ -277,7 +342,17 @@ Rückfragen (kein AskUserQuestion).
    keine Rückfragen beantworten).
 4. Auslieferung (Phase 11): Die fertige HTML-Datei bleibt im Projektordner
    ({projekt_dir}). NICHT irgendwo hochladen — kein rclone, kein
-   Filesharing-Dienst, kein externer Ablageort.
+   Filesharing-Dienst, kein externer Ablageort."""
+    return f"""Du bist der Produktions-Agent der App „SmartCon-Schulungen". Dein
+Arbeitsverzeichnis ist der Projektordner: {projekt_dir}
+
+Lies zuerst diese Skill-Anleitung vollständig: {SKILL_MD}
+Arbeite danach TEIL 2 vollständig ab — von Phase 2.5 (Preflight) bis Phase 11
+(Auslieferung). Quelle ist ausschließlich die Datei curriculum.md in diesem
+Projektordner: was produziert wird, steht dort. Nicht improvisieren, keine
+Rückfragen (kein AskUserQuestion).
+{kostenlos_block}
+{reihenfolge}
 
 ## Abschluss
 

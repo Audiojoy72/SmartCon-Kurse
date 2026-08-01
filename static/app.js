@@ -178,8 +178,14 @@ async function ladePresets() {
     box.appendChild(eigene);
     box.querySelectorAll('input[name="stil"]').forEach((r) =>
       r.addEventListener("change", () => {
-        document.getElementById("design-upload-wrap").hidden =
-          box.querySelector('input[name="stil"]:checked').value !== "design";
+        const gewaehlt = box.querySelector('input[name="stil"]:checked').value;
+        document.getElementById("design-upload-wrap").hidden = gewaehlt !== "design";
+        // Preset „kostenlos" erzwingt KI-Medien: Nein
+        const schalter = document.querySelector('input[name="ki_medien"]');
+        const aus = gewaehlt === "kostenlos";
+        schalter.disabled = aus;
+        if (aus) schalter.checked = false;
+        document.getElementById("ki-medien-hinweis").hidden = !aus;
       }));
   } catch (e) {
     box.innerHTML = `<p class="muted">Presets nicht ladbar: ${e}</p>`;
@@ -216,6 +222,7 @@ document.getElementById("projekt-form").addEventListener("submit", async (e) => 
   fd.append("sprache", sprache);
   fd.append("dauer", form.dauer.value);
   fd.append("stil", form.querySelector('input[name="stil"]:checked')?.value || "cinematic");
+  fd.append("ki_medien", form.ki_medien.checked ? "ja" : "nein");
   fd.append("material_hinweise", form.material_hinweise.value);
   if (form.design_md.files[0]) fd.append("design_md", form.design_md.files[0]);
   for (const f of form.material.files) fd.append("material", f);

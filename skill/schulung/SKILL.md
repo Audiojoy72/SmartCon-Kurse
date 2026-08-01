@@ -20,7 +20,8 @@ Doppelklick, teilbar per Mail/Drive/LMS.
 ## Stil-Hierarchie: design.md schlägt Preset, Preset schlägt Default
 
 Gestaltung, Guide-Figur und Medien-Defaults stehen in den **Presets** unter
-`reference/styles/` (`cinematic` = Default, `comic`, `corporate`, `statisch`).
+`reference/styles/` (`cinematic` = Default, `comic`, `corporate`, `statisch`,
+`kostenlos`).
 Liegt im Projektordner eine **`design.md`** (Kunden-CI: Akzentfarbe, Logo-Pfad, Wortmarke,
 Footer-Zeile, Stil-Hinweise — Vorlage: `reference/design-vorlage.md`), übersteuert sie das
 gewählte Preset. Es gilt also:
@@ -37,7 +38,7 @@ sie bestimmen schon die Guide-Figur und die Bild-Prompts.
 | | **TEIL 1 — Curriculum** | **TEIL 2 — Produktion** |
 |---|---|---|
 | Ergebnis | `curriculum.md` — der komplette Inhalt als Text | die fertige HTML-Datei |
-| Kosten | 0 Credits | ~110–1000 Credits (Preset `statisch`: ~10–40) |
+| Kosten | 0 Credits | ~110–1000 Credits (Preset `statisch`: ~10–40, Preset `kostenlos`: 0) |
 | Dauer | Minuten | ~1 Stunde |
 | Dazwischen | **Freigabe-Gate: explizites „Go" des Users abwarten** | |
 
@@ -65,7 +66,8 @@ Ohne diese Angaben nicht starten — sie bestimmen Umfang, Ton, Stil und Produkt
 3. **Sprache** — Sprache aller Texte, Stimmen und Bildschirmtexte. Keine Annahme treffen.
 4. **Dauer** — bestimmt die Level-Anzahl (Tabelle unten).
 5. **Stil** — **Preset** aus `reference/styles/` (`cinematic` = Default, `comic`,
-   `corporate`, `statisch`) oder eigene **`design.md`**? Bei design.md zusätzlich prüfen:
+   `corporate`, `statisch`, `kostenlos`) oder eigene **`design.md`**? Bei design.md
+   zusätzlich prüfen:
    Akzentfarbe (Hex), Logo-Datei, Wortmarke, Footer-Zeile, Stil-Hinweise. Fehlt etwas davon,
    im Curriculum als offene Position führen, nicht erfinden.
 
@@ -200,11 +202,40 @@ Dritten), erscheint sie **als eigenständige Publikation**:
 
 ---
 
-# TEIL 2 — PRODUKTION (verbraucht Credits)
+# TEIL 2 — PRODUKTION (verbraucht Credits — außer Preset `kostenlos`)
 
 Ab hier ist `curriculum.md` die verbindliche Quelle. Nicht improvisieren, nicht umformulieren —
 was produziert wird, steht im Dokument. Fällt bei der Produktion doch ein inhaltlicher Fehler
 auf: erst das Curriculum korrigieren, dann produzieren.
+
+## Medienloser Zweig — Preset `kostenlos` (0 Credits)
+
+Beim Preset `kostenlos` (oder einem Medienplan ganz ohne FILM/BILD/Voiceover) **entfallen die
+Phasen 3, 4, 5, 7 und 8**. TEIL 2 läuft dann so:
+
+**Phase 2.5 (Preflight im Kostenlos-Modus) → Phase 6 (HTML-Szenen) → Phase 9 (HTML-Bau) →
+Phase 10 (Browser-Test) → Phase 11 (Auslieferung).**
+
+Es wird **kein einziger `higgsfield`-Aufruf** gemacht — weder `generate` noch `cost`.
+Das Ergebnis bleibt die komplette interaktive Lerneinheit (Level, Interaktionen, Quiz, XP,
+Gamification, Merkblatt) — nur ohne Videos, ohne KI-Bilder, ohne Voiceover.
+
+- **Preflight im Kostenlos-Modus:** `SCHULUNG_KOSTENLOS=1 bash scripts/preflight.sh` —
+  Higgsfield, ffmpeg, Node und Whisper werden als „nicht nötig" gemeldet statt zu failen.
+- **HTML-Szenen ohne Tonspur — schrittgesteuert statt `timeupdate`-Choreografie:** Die
+  Elemente der Szene erscheinen nacheinander per „Weiter"-Tippen/Klick (optional mit sanftem
+  Auto-Takt ~4 s), dazu Tastatur-Steuerung (Pfeiltasten/Enter) und ein sichtbarer
+  Schrittzähler („2 von 7"). Die Regel bleibt: Der Inhalt darf nie am Abspielen hängen —
+  wer vorspult oder die Szene verlässt, bekommt beim Verlassen **alle Elemente sichtbar**
+  geschaltet.
+- **Das Voiceover-Skript wird Sprechertext:** Es wird im Curriculum NICHT gestrichen, sondern
+  erscheint als Fließtext/Bildschirmtext der Szene — die Substanz bleibt vollständig erhalten.
+- **Phase 9 im medienlosen Zweig:** kein `<audio>`, kein `<video>`, kein „Ton an!"-Hinweis,
+  kein Video-Screen — stattdessen der Schritt-Mechanismus. Die Base64-Einbettung entfällt
+  größtenteils (keine Medien) — die Datei wird klein (deutlich unter 1 MB).
+- **Phase 10 im medienlosen Zweig:** zusätzlich die Schritt-Steuerung vollständig
+  durchklicken — vor/zurück, Tastatur (Pfeiltasten/Enter), Schrittzähler, und prüfen, dass
+  beim Verlassen einer Szene alle Elemente sichtbar sind.
 
 ## Phase 2.5 — Preflight (Pflicht, direkt nach dem „Go")
 
@@ -214,10 +245,12 @@ bash scripts/preflight.sh
 
 Prüft ffmpeg, Node-Version, den Transkriptions-Weg und die Higgsfield-CLI samt Guthaben.
 **Bricht der Preflight ab, nichts produzieren** — sonst scheitert die Kette mitten
-in einer bezahlten Sequenz.
+in einer bezahlten Sequenz. Beim Preset `kostenlos` stattdessen der Kostenlos-Modus:
+`SCHULUNG_KOSTENLOS=1 bash scripts/preflight.sh` (siehe „Medienloser Zweig" oben).
 
 Danach jede geplante Generierung mit `higgsfield generate cost <job_type> …` durchrechnen und
-die Summe gegen `higgsfield account status` halten. **Reicht das Guthaben nicht, den User
+die Summe gegen `higgsfield account status` halten (entfällt im medienlosen Zweig — dort gibt
+es keine Generierungen). **Reicht das Guthaben nicht, den User
 fragen, bevor irgendetwas generiert wird** — nicht „so weit es reicht" produzieren, das
 hinterlässt eine halbe Schulung und leere Credits.
 
@@ -338,7 +371,8 @@ deshalb ist der Umweg über MP4 meist der schlechtere Weg.
 **HTML-Szene bauen:** Elemente als `<div>` mit Klasse je Typ (Kopf, Merksatz, Aufzählung),
 alle unsichtbar, und ein `timeupdate`-Handler auf dem `<audio>`, der sie an ihrem Beat
 einblendet. Wer die Szene überspringt, bekommt beim Verlassen alle Elemente sichtbar
-geschaltet — der Inhalt darf nie am Abspielen hängen.
+geschaltet — der Inhalt darf nie am Abspielen hängen. **Ohne Tonspur** (Preset `kostenlos`)
+gilt stattdessen die schrittgesteuerte Variante — siehe „Medienloser Zweig" oben.
 
 **Figuren lebendig machen, ohne Credits:** Zwei Haltungen derselben Figur übereinanderlegen
 und an jedem dritten Beat überblenden, dazu ein ruhiges Schweben per CSS-Keyframes und einen
@@ -440,7 +474,9 @@ alle Medien als Base64-Data-URIs einsetzen. Architektur:
 - Farben, Größen und die Stil-Klammer nach dem gewählten Preset (`reference/styles/`) bzw.
   der design.md — keine eigenen Farben erfinden, keine Verläufe, keine Deko-Emojis
 - Video-Screen wiederverwendbar (ein `<video>`-Element, src wird gewechselt; „Weiter"-Button
-  pulsiert nach `ended`; Hinweis „Ton an!" in der Zielsprache)
+  pulsiert nach `ended`; Hinweis „Ton an!" in der Zielsprache). Entfällt beim Preset
+  `kostenlos` — dort ersetzt der Schritt-Mechanismus (siehe „Medienloser Zweig") Video-
+  und Audio-Screens.
 - XP-Ökonomie: richtige Antwort volle Punkte, zweiter Versuch halbe, Level-Abschluss +25
 - Level-Sperre: Interaktion muss abgeschlossen sein, Videos sind überspringbar
 - Namenseingabe optional (nur zur Personalisierung des Feedbacks), nicht erzwingen
@@ -477,10 +513,13 @@ Lokal serven (`python3 -m http.server`), dann komplett durchklicken:
 2. Jede Interaktion inkl. FEHLER-Pfaden (falsche Antworten, Timer ablaufen lassen)
 3. Abschluss-Check absichtlich schlecht abschließen → Auswertung und Retry prüfen
 4. Neu laden → „Fortsetzen" funktioniert; Konsole: null Fehler
-5. Kontrast der tatsächlich gesetzten Farben nachrechnen:
+5. Beim Preset `kostenlos` zusätzlich: Schritt-Steuerung vollständig durchklicken
+   (vor/zurück, Pfeiltasten/Enter, Schrittzähler) und prüfen, dass beim Verlassen
+   einer Szene alle Elemente sichtbar werden
+6. Kontrast der tatsächlich gesetzten Farben nachrechnen:
    `python3 scripts/kontrast.py "<akzent>" "<panel>"` (mit den Werten des Presets bzw.
    der design.md aufrufen — Akzent auf Hintergrund muss ≥ 4,5:1 liegen)
-6. Dateigröße prüfen; Server stoppen, Datei ausliefern
+7. Dateigröße prüfen; Server stoppen, Datei ausliefern
 
 ## Phase 11 — Benennen und ausliefern
 
@@ -514,7 +553,8 @@ jeder Produktion trotzdem neu abfragen — Preise können sich ändern.
 **Beispielrechnung:** Kompakt-Lektion (4 Level, 1 Story-Video à 10 s, 3 Animationen, 3 Bilder)
 ≈ 110 Credits · Volle Schulung (8 Level, 3 Story-Sequenzen mit zusammen ~105 s Filmmaterial,
 5 Animationen, 7 Bilder) ≈ 980 Credits · Preset `statisch` (0 Filme, nur HTML-Szenen +
-2–3 Bilder) ≈ 10–40 Credits.
+2–3 Bilder) ≈ 10–40 Credits · Preset `kostenlos` (0 Filme, 0 Bilder, 0 Voiceover —
+nur schrittgesteuerte HTML-Szenen) = **0 Credits**.
 
 Die Videosekunden dominieren die Kosten zu über 95 % — Bilder, Stimmen und die
 HyperFrames-Animationen fallen kaum ins Gewicht. Zwei Hebel: Konzepte konsequent als
@@ -541,7 +581,7 @@ Produktion prüfen.
 > offline lauffähige HTML-Datei. Zielgruppe: **[z. B. neue Mitarbeitende / meine
 > Coaching-Klienten / das Team von Kunde X]**, Sprache: **[z. B. Deutsch]**,
 > Dauer: **[z. B. ~20 Min]**, Stil: **[Preset cinematic / comic / corporate / statisch
-> oder eigene design.md]**.
+> / kostenlos oder eigene design.md]**.
 > Inhalte sollen abdecken: **[Stichpunkte oder vorhandenes Material]**.
 > Erstelle zuerst das Curriculum als Dokument — erst nach meiner Freigabe produzieren.
 
@@ -577,3 +617,8 @@ Prompt-Templates können gegen diese Tabelle gebaut werden:
 
 Jede Phase ist einzeln wiederholbar; produktionsrelevante Wiederholungen (ab Phase 3)
 kosten Credits — vorher die Kosten erneut schätzen.
+
+**Variante `kostenlos`:** Die Phasen 3, 4, 5, 7 und 8 entfallen komplett (keine Artefakte,
+keine Credits). Phase 2.5 läuft mit `SCHULUNG_KOSTENLOS=1`, Phase 6 liefert schrittgesteuerte
+HTML-Szenen ohne Tonspur; Phase 9 baut die Datei ohne `<video>`/`<audio>` direkt aus dem
+Curriculum. Der Ablauf ist: 2.5 → 6 → 9 → 10 → 11.

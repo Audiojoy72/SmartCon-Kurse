@@ -2,37 +2,60 @@
 # Prueft VOR der Produktion, ob alles bereitsteht. Zweck: nicht mitten in einer
 # Credit-Produktion an einem fehlenden ffmpeg scheitern.
 #
-#   ./preflight.sh          # alles pruefen
+#   ./preflight.sh              # alles pruefen
+#   ./preflight.sh --kostenlos  # Kostenlos-Modus (Preset kostenlos):
+#                               # Higgsfield/ffmpeg/Node/Whisper sind "nicht noetig"
+#   SCHULUNG_KOSTENLOS=1 ./preflight.sh   # dasselbe per Umgebungsvariable
 #
 # Rueckgabe: 0 = produktionsbereit, 1 = etwas Notwendiges fehlt.
 set -uo pipefail
+
+KOSTENLOS=0
+for a in "$@"; do
+  [ "$a" = "--kostenlos" ] && KOSTENLOS=1
+done
+[ "${SCHULUNG_KOSTENLOS:-}" = "1" ] && KOSTENLOS=1
 
 FEHLER=0
 WARNUNG=0
 ok()   { printf '  \033[32mok\033[0m    %s\n' "$1"; }
 warn() { printf '  \033[33mwarn\033[0m  %s\n' "$1"; WARNUNG=$((WARNUNG+1)); }
 fail() { printf '  \033[31mfehlt\033[0m %s\n' "$1"; FEHLER=$((FEHLER+1)); }
+skip() { printf '  \033[34mnicht noetig\033[0m %s\n' "$1"; }
 
 echo "Preflight — interaktive Lerneinheit"
+if [ "$KOSTENLOS" = "1" ]; then
+  echo "Modus: KOSTENLOS (Preset kostenlos — keine Medienproduktion, 0 Credits)"
+fi
 echo
 
 echo "Medien-Werkzeuge"
-if command -v ffmpeg >/dev/null 2>&1; then
-  ok "ffmpeg $(ffmpeg -version | head -1 | awk '{print $3}')"
+if [ "$KOSTENLOS" = "1" ]; then
+  skip "ffmpeg (kein Muxing, kein Tempo — es gibt keine Medien)"
 else
-  fail "ffmpeg — ohne das kein Muxing, kein Tempo, kein Concat"
+  if command -v ffmpeg >/dev/null 2>&1; then
+    ok "ffmpeg $(ffmpeg -version | head -1 | awk '{print $3}')"
+  else
+    fail "ffmpeg — ohne das kein Muxing, kein Tempo, kein Concat"
+  fi
 fi
 
-N22=$(bash "$(dirname "$0")/hyperframes.sh" --pfad 2>/dev/null || true)
-if [ -n "$N22" ]; then
-  ok "node $("$N22/node" -v) fuer HyperFrames ($N22)"
+if [ "$KOSTENLOS" = "1" ]; then
+  skip "node >= 22 (keine HyperFrames-Renders — Szenen laufen als HTML)"
 else
-  fail "keine Node-Laufzeit >= 22 — HyperFrames braucht sie. Abhilfe: nvm install 22"
+  N22=$(bash "$(dirname "$0")/hyperframes.sh" --pfad 2>/dev/null || true)
+  if [ -n "$N22" ]; then
+    ok "node $("$N22/node" -v) fuer HyperFrames ($N22)"
+  else
+    fail "keine Node-Laufzeit >= 22 — HyperFrames braucht sie. Abhilfe: nvm install 22"
+  fi
 fi
 
 echo
 echo "Transkription (Beat-Timestamps)"
-if [ -n "${WHISPER_REMOTE_CMD:-}" ]; then
+if [ "$KOSTENLOS" = "1" ]; then
+  skip "whisper/WHISPER_REMOTE_CMD (kein Voiceover — nichts zu transkribieren)"
+elif [ -n "${WHISPER_REMOTE_CMD:-}" ]; then
   ok "Remote-Transkription konfiguriert (WHISPER_REMOTE_CMD gesetzt)"
 elif command -v whisper >/dev/null 2>&1; then
   ok "lokales whisper vorhanden (Default; CPU-tauglich, GPU deutlich schneller)"
@@ -42,7 +65,9 @@ fi
 
 echo
 echo "Higgsfield (Video, Bild, Voiceover)"
-if ! command -v higgsfield >/dev/null 2>&1; then
+if [ "$KOSTENLOS" = "1" ]; then
+  skip "higgsfield-CLI, Auth, Guthaben, Workspace (0 Credits — kein Higgsfield noetig)"
+elif ! command -v higgsfield >/dev/null 2>&1; then
   fail "higgsfield-CLI nicht gefunden: npm i -g higgsfield, dann higgsfield auth login"
 else
   STATUS=$(timeout 30 higgsfield account status 2>&1 || true)
@@ -67,6 +92,12 @@ fi
 
 echo
 echo "Stil"
+SKILL_MD="$(dirname "$0")/../SKILL.md"
+if [ -f "$SKILL_MD" ]; then
+  ok "Skill-Anleitung gefunden: $SKILL_MD"
+else
+  fail "SKILL.md fehlt neben dem Skript ($SKILL_MD) — Installation unvollstaendig"
+fi
 if [ -n "${DESIGN_MD:-}" ] && [ -f "$DESIGN_MD" ]; then
   ok "design.md gefunden: $DESIGN_MD (uebersteuert das Preset)"
   if grep -q '^logo:' "$DESIGN_MD"; then

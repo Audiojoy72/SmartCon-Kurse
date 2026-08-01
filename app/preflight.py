@@ -153,8 +153,9 @@ def run_all(cfg: dict) -> list[dict]:
 
     checks.append(_check_binary(
         "higgsfield", "Higgsfield-CLI", ["higgsfield", "version"],
-        pflicht=True,
-        hint="npm i -g higgsfield, dann: higgsfield auth login"))
+        pflicht=False,
+        hint="nur für KI-Medien nötig — Preset kostenlos kommt ohne Higgsfield aus "
+             "(ansonsten: npm i -g higgsfield, dann higgsfield auth login)"))
 
     # Auth + Workspace nur prüfen, wenn die CLI da ist
     if shutil.which("higgsfield"):
@@ -185,7 +186,8 @@ def run_all(cfg: dict) -> list[dict]:
         checks.append(_check_binary(
             "whisper", "Whisper (lokale Transkription)", [cfg["whisper_command"], "--help"],
             pflicht=False,
-            hint="lokal installieren oder in den Einstellungen auf API-Modus wechseln"))
+            hint="lokal installieren oder in den Einstellungen auf API-Modus wechseln "
+                 "— nicht nötig beim Preset kostenlos"))
 
     # Node 22+ für HyperFrames (optional): erst System-Node prüfen, dann nvm
     node22 = ""
@@ -211,7 +213,8 @@ def run_all(cfg: dict) -> list[dict]:
     checks.append({"id": "node22", "name": "Node 22+ (HyperFrames, optional)",
                    "status": "ok" if node22 else "warn",
                    "detail": node22 or "nicht gefunden",
-                   "hint": "" if node22 else "nvm install 22",
+                   "hint": "" if node22 else "nvm install 22 — nicht nötig beim "
+                                              "Preset kostenlos",
                    "anleitung": ANLEITUNG["node22"]})
 
     # Neutraler Skill im Repo?

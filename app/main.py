@@ -66,6 +66,7 @@ async def api_projekt_neu(
     sprache: str = Form(...),
     dauer: str = Form(...),
     stil: str = Form(...),
+    ki_medien: str = Form("ja"),
     material_hinweise: str = Form(""),
     design_md: UploadFile | None = File(None),
     material: list[UploadFile] = File([]),
@@ -87,6 +88,9 @@ async def api_projekt_neu(
         "sprache": sprache.strip(),
         "dauer": dauer.strip(),
         "stil": stil,
+        # Schalter „Higgsfield nutzen Ja/Nein" — Preset kostenlos erzwingt Nein
+        "ki_medien": False if stil == "kostenlos"
+                     else ki_medien.lower() in ("ja", "true", "1", "on"),
         "material_hinweise": material_hinweise.strip(),
     }
     dateien = [(f.filename, await f.read()) for f in material if f.filename]
