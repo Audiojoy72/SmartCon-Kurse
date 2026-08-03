@@ -194,7 +194,14 @@ async function ladePresets() {
     box.querySelectorAll('input[name="stil"]').forEach((r) =>
       r.addEventListener("change", () => {
         const gewaehlt = box.querySelector('input[name="stil"]:checked').value;
-        document.getElementById("design-upload-wrap").hidden = gewaehlt !== "design";
+        const upload = document.getElementById("design-upload-wrap");
+        upload.hidden = gewaehlt !== "design";
+        // Beim Wegschalten die Datei auch wirklich entfernen: ein verstecktes
+        // File-Feld behält seinen Inhalt und würde sonst unsichtbar mitgesendet
+        // und still das Design bestimmen.
+        if (upload.hidden) {
+          document.getElementById("projekt-form").design_md.value = "";
+        }
         // Preset „kostenlos" erzwingt KI-Medien: Nein
         const schalter = document.querySelector('input[name="ki_medien"]');
         const aus = gewaehlt === "kostenlos";

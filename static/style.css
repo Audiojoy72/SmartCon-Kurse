@@ -135,6 +135,11 @@ form label.checkbox input {
   margin-top: 0;
 }
 
+/* Ohne diese Regel schlägt „form label { display: block }" das hidden-Attribut
+   (Autor-Stylesheet gewinnt gegen das UA-Stylesheet) — versteckte Labels wie
+   der design.md-Upload oder das Sprach-Freitextfeld blieben sonst sichtbar. */
+form label[hidden] { display: none; }
+
 fieldset {
   border: 1px solid var(--line);
   border-radius: 8px;
