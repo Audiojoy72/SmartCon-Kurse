@@ -59,16 +59,42 @@ def _briefing_block(brief: dict) -> str:
     return "\n".join(zeilen)
 
 
+def _stil_zeile(projekt_dir: Path, stil: str) -> str:
+    """Welche Stil-Quellen der Agent lesen soll.
+
+    Stil-Hierarchie laut SPEC: design.md > Preset > Default. Eine hochgeladene
+    design.md gilt deshalb AUCH dann, wenn ein Preset gewählt wurde — sie
+    ersetzt aber nur die Optik, nicht die Medien- und Kostenregeln des Presets
+    (sonst würde „kostenlos" seine 0-Credit-Garantie verlieren).
+    """
+    design_datei = projekt_dir / "design.md"
+    zeilen = []
+    if stil != "design":
+        zeilen.append(f"Lies danach das gewählte Preset vollständig: "
+                      f"{STYLES_DIR / (stil + '.md')}")
+    if design_datei.is_file():
+        if stil == "design":
+            zeilen.append(f"Lies danach die hochgeladene Design-Vorgabe: "
+                          f"{design_datei}")
+        else:
+            zeilen.append(
+                f"Im Projektordner liegt zusätzlich eine eigene Design-Vorgabe: "
+                f"{design_datei}\n"
+                "Lies sie ebenfalls vollständig. Bei Optik (Farben, Typografie, "
+                "Tonalität) hat sie VORRANG vor dem Preset; die Medien- und "
+                "Kostenregeln des Presets bleiben unverändert gültig.")
+        zeilen.append(
+            "Halte im Steckbrief des curriculum.md ausdrücklich fest, DASS eine "
+            "design.md vorliegt, und übernimm ihre Farbwerte und Schriften dort "
+            "wörtlich — die Produktion liest später nur das curriculum.md.")
+    return "\n".join(zeilen)
+
+
 def curriculum_prompt(projekt_dir: Path, brief: dict,
                       material_dateien: list[str]) -> str:
     """Arbeitsauftrag für Teil 1 (Phasen 0–2): Recherche + curriculum.md."""
     stil = brief.get("stil", "cinematic")
-    if stil == "design":
-        stil_zeile = (f"Lies danach die hochgeladene Design-Vorgabe: "
-                      f"{projekt_dir / 'design.md'}")
-    else:
-        stil_zeile = (f"Lies danach das gewählte Preset vollständig: "
-                      f"{STYLES_DIR / (stil + '.md')}")
+    stil_zeile = _stil_zeile(projekt_dir, stil)
     if material_dateien:
         material_zeile = (
             "Im Projektordner liegt vom Nutzer hochgeladenes Material — sichte es "
@@ -296,6 +322,19 @@ def produktion_prompt(projekt_dir: Path, whisper_remote: bool) -> str:
             "scripts/transkribieren.sh nutzt dann das lokal installierte\n"
             "whisper (Default-Weg des Skills).")
     stil = _projekt_stil(projekt_dir)
+    # design.md gilt auch hier, obwohl die Produktion sonst nur curriculum.md
+    # liest — sonst geht die CI verloren, wenn sie im Curriculum zu knapp steht.
+    if (projekt_dir / "design.md").is_file():
+        design_block = f"""
+## Eigene Design-Vorgabe (Vorrang vor dem Preset)
+
+Im Projektordner liegt eine design.md: {projekt_dir / 'design.md'}
+Lies sie vor dem HTML-Bau (Phase 6) vollständig. Farben, Typografie und
+Tonalität der fertigen HTML richten sich nach dieser Datei, nicht nach dem
+Preset. Medien- und Kostenregeln bleiben davon unberührt.
+"""
+    else:
+        design_block = ""
     if not _projekt_ki_medien(projekt_dir):
         kostenlos_block = f"""
 ## KI-Medien: Nein (0 Credits — medienloser Zweig)
@@ -351,7 +390,7 @@ Arbeite danach TEIL 2 vollständig ab — von Phase 2.5 (Preflight) bis Phase 11
 (Auslieferung). Quelle ist ausschließlich die Datei curriculum.md in diesem
 Projektordner: was produziert wird, steht dort. Nicht improvisieren, keine
 Rückfragen (kein AskUserQuestion).
-{kostenlos_block}
+{design_block}{kostenlos_block}
 {reihenfolge}
 
 ## Abschluss
