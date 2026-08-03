@@ -594,7 +594,7 @@ Produktion prüfen.
 
 | Baustein | Nötig für | Einrichten |
 |---|---|---|
-| Higgsfield-CLI | Video, Bild, Voiceover | `npm i -g higgsfield` (Aliase `hf`, `higgs`), dann `higgsfield auth login` und **`higgsfield workspace set <id>`** — ohne gesetzten Workspace antwortet jeder Aufruf mit „No workspace selected" |
+| Higgsfield-CLI | Video, Bild, Voiceover | `npm i -g @higgsfield/cli` (Aliase `hf`, `higgs`), dann `higgsfield auth login` und **`higgsfield workspace set <id>`** — ohne gesetzten Workspace antwortet jeder Aufruf mit „No workspace selected" |
 | Node 22+ | HyperFrames | `nvm install 22` (parallel zu vorhandenen Versionen). **Nicht** `nvm use` — der Wrapper `scripts/hyperframes.sh` wählt die Laufzeit selbst |
 | HyperFrames-Skills | HyperFrames | **nicht** alle 31 installieren — das Repo hat auch Captions-, Talking-Head- und Figma-Workflows, die hier nur die Skill-Liste aufblähen. Nötig sind fünf, und `-s` nimmt nur **einen** Namen je Aufruf: `for s in hyperframes hyperframes-core hyperframes-cli hyperframes-animation hyperframes-keyframes; do npx -y skills add heygen-com/hyperframes -g -y -s "$s" -a claude-code; done` |
 | ffmpeg | alles ab Phase 4 | Distributionspaket |

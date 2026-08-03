@@ -27,7 +27,7 @@ ANLEITUNG = {
    — beim ersten Start läuft der Login durch.
 3. Prüfen:  kimi --version""",
     "higgsfield": """\
-1. Installieren:  npm i -g higgsfield
+1. Installieren:  npm i -g @higgsfield/cli
 2. Anmelden:  higgsfield auth login
 3. Workspace setzen (wird oft vergessen):
    higgsfield workspace list
@@ -155,7 +155,7 @@ def run_all(cfg: dict) -> list[dict]:
         "higgsfield", "Higgsfield-CLI", ["higgsfield", "version"],
         pflicht=False,
         hint="nur für KI-Medien nötig — Preset kostenlos kommt ohne Higgsfield aus "
-             "(ansonsten: npm i -g higgsfield, dann higgsfield auth login)"))
+             "(ansonsten: npm i -g @higgsfield/cli, dann higgsfield auth login)"))
 
     # Auth + Workspace nur prüfen, wenn die CLI da ist
     if shutil.which("higgsfield"):

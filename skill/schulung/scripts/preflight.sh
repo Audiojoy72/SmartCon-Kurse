@@ -68,7 +68,7 @@ echo "Higgsfield (Video, Bild, Voiceover)"
 if [ "$KOSTENLOS" = "1" ]; then
   skip "higgsfield-CLI, Auth, Guthaben, Workspace (0 Credits — kein Higgsfield noetig)"
 elif ! command -v higgsfield >/dev/null 2>&1; then
-  fail "higgsfield-CLI nicht gefunden: npm i -g higgsfield, dann higgsfield auth login"
+  fail "higgsfield-CLI nicht gefunden: npm i -g @higgsfield/cli, dann higgsfield auth login"
 else
   STATUS=$(timeout 30 higgsfield account status 2>&1 || true)
   case "$STATUS" in
