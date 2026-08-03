@@ -63,7 +63,7 @@ Bedienbar auch vom Handy: geprüft bei 390 px und 320 px, kein horizontaler
 |---|---|
 | Container | `Dockerfile` (python:3.11-slim + ffmpeg + Node 22 + `@higgsfield/cli` + cloudflared + openssh + claude-/kimi-CLI), `docker-compose.yml` mit Auth-Mounts (`~/.claude`, `~/.kimi-code`, `~/.config/higgsfield` rw; `~/.ssh`, `~/.cloudflare` ro), `restart: unless-stopped`, `host.docker.internal:host-gateway` |
 | Betrieb ohne Docker | `python3 -m venv .venv && .venv/bin/python -m app.main` |
-| Netz | Port 8710; `lan_erreichbar` in `config.json` → Bind `0.0.0.0` oder `127.0.0.1`. Kein Login — LAN-Freigabe ist Vertrauenssache |
+| Netz | Port 8710; `lan_erreichbar` in `config.json` → Bind `0.0.0.0` oder `127.0.0.1`, **Default aus**. Kein Login — LAN-Freigabe ist Vertrauenssache |
 | Whisper-Tunnel (Referenz-Setup) | systemd-User-Unit `whisper-tunnel.service` (`ssh -N -L 0.0.0.0:18710:localhost:8000 dsski`), `Restart=always`, Linger |
 | Repo | `github.com/Audiojoy72/SmartCon-Schulungen` (public, Branch `master`), Lizenz AGPL-3.0 |
 
@@ -104,7 +104,9 @@ gesamt.**
   Cloudflare-Tokens, Higgsfield-Auth) verlassen die Maschine nicht über das Repo
 - Agenten-Sessions sind ans Arbeitsverzeichnis gebunden; der Runner prüft vor
   jedem Resume, ob die Session-Datei existiert (Host- ≠ Container-Pfade)
-- Die App hat kein Login — LAN-Freigabe nur in vertrauten Netzen
+- Die App hat kein Login — LAN-Freigabe (Default aus) nur in vertrauten Netzen.
+  Wer die App erreicht, kann über Briefing- oder Kommentartext Agenten-Läufe mit
+  Bash-Rechten auslösen (`--permission-mode acceptEdits`)
 
 ## Bekannte Fallen (harte Lernerfahrungen)
 

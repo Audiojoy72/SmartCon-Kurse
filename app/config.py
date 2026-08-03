@@ -20,7 +20,9 @@ DEFAULTS = {
     "cf_access_client_id": "",
     "cf_access_client_secret": "",
     "port": 8710,
-    "lan_erreichbar": True,        # True = im LAN erreichbar (0.0.0.0), False = nur localhost
+    # Default aus: LAN-Zugriff hat keinen Login, und der Agent arbeitet mit
+    # Bash-Rechten — bewusst zuschalten statt versehentlich offen stehen.
+    "lan_erreichbar": False,       # True = im LAN erreichbar (0.0.0.0), False = nur localhost
 }
 
 

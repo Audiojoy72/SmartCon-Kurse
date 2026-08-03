@@ -20,7 +20,7 @@ selbstbeschreibend. Footer der App: **„AI-SmartCon – Matthias Geist"** und
 |---|---|---|
 | 1 | Wer denkt? | **KI-Agent im Hintergrund**; die App ist Formular-Oberfläche, kein reiner Wizard |
 | 2 | Welcher Agent? | **Umschaltbar, Default Claude Code** (`claude -p --output-format stream-json`), Kimi als Fallback; Skill bei Bedarf für Kimi anpassen |
-| 3 | Nutzerkreis | **Nur Matthias, lokal auf localhost** — kein Login, kein Deployment |
+| 3 | Nutzerkreis | **Nur Matthias, Default localhost** — kein Login, kein Deployment. **LAN-Zugriff ist seit 01.08.2026 zuschaltbar** (Einstellung „LAN erreichbar" → `0.0.0.0`), damit die Oberfläche vom Handy aus bedienbar ist; **Default bleibt aus**. Im offenen Netz nicht einschalten: es gibt keinen Login, und wer die App erreicht, kann über Briefing- oder Kommentartext Agenten-Läufe mit Bash-Rechten auslösen |
 | 4 | Tech-Stack | **FastAPI + Vanilla JS**, kein Build-Schritt, `venv` im Projektordner; SSE für Fortschritt; CLIs als Subprozesse |
 | 5 | Wer führt? | **Die App besitzt die State-Machine** (11 Phasen + Gate); der Agent bekommt pro Phase einen Arbeitsauftrag; Phasenlogik als Prompt-Templates, die auf die SKILL.md verweisen |
 | 6 | Stil-Freiheit | **Preset-Bibliothek im Skill** (z. B. `reference/styles/*.md`): Stil-Block, Guide-Figur, Medien-Defaults, Kostenrahmen je Preset. Mehrere neutrale Presets, **ohne DSS-/AISC-Bezug**. Eigene `design.md` einles-/übergebbar; eigene Figuren hochladbar (→ Skill-Phase 6c); Custom-Prompt-Felder |
@@ -38,7 +38,7 @@ selbstbeschreibend. Footer der App: **„AI-SmartCon – Matthias Geist"** und
 ```
 Browser (Vanilla JS Wizard)
    │  HTTP + SSE
-FastAPI (lokal, localhost)
+FastAPI (lokal, localhost — LAN optional zuschaltbar)
    │  Subprozess + stream-json
 claude -p  /  kimi -p   ← neutraler schulung-Skill (im Repo: skill/)
    │  CLI-Aufrufe

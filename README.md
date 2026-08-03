@@ -112,7 +112,7 @@ Alle Einstellungen im UI (Tab „Einstellungen"), gespeichert in `config.json`
 | Agenten-Backend | `claude` (primär) oder `kimi` (Fallback) |
 | Default-design.md | Pfad zu einer eigenen CI-Datei |
 | Transkription | lokal (Whisper-Befehl) oder API (OpenAI-kompatibel: URL, Key, Modell, optional Cloudflare-Access-Token) |
-| LAN erreichbar | an = `0.0.0.0` (kein Login — jedes Gerät im Netz darf), aus = nur localhost |
+| LAN erreichbar | **Default aus** = nur localhost; an = `0.0.0.0` (kein Login — jedes Gerät im Netz darf). Nur in vertrauten Netzen einschalten |
 | Port | Default 8710 |
 
 ## Datenablage
