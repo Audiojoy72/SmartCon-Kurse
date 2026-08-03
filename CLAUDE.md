@@ -92,6 +92,12 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
 - Frontend muss auf dem Handy funktionieren: nach jeder UI-Änderung bei 390 px
   und 320 px gegen horizontalen Überlauf prüfen. Flex-Zeilen brauchen
   `flex-wrap`, breite Tabellen den Kasten `.tabelle-scroll`.
+- `hidden` allein versteckt nichts: `form label { display: block }` in
+  `style.css` schlägt das Attribut (Autor-Stylesheet gewinnt gegen das
+  UA-Stylesheet). Dafür gibt es `form label[hidden] { display: none }` — bei
+  neuen Regeln mit eigenem `display` immer eine `[hidden]`-Variante nachziehen.
+  Sichtbarkeit im Test über `getComputedStyle(el).display` prüfen, nicht über
+  `el.hidden` — sonst meldet der Test „versteckt", während das Feld dasteht.
 
 ## Key Files
 

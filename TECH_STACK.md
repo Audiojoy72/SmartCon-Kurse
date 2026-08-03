@@ -24,8 +24,9 @@ Stand 2026-08-01. Verbindliches Pflichtenheft: [SPEC.md](SPEC.md).
 | `higgsfield.py` | Guthaben-Abfrage mit 60-s-Cache |
 | `config.py` | `config.json` laden/speichern (gitignored, enthält Zugangsdaten) |
 
-**Dependencies** (`requirements.txt`): `fastapi`, `uvicorn[standard]`,
-`python-multipart` (Uploads). Keine Datenbank — alles liegt als Dateien im
+**Dependencies** (`requirements.txt`, gepinnt): `fastapi==0.141.1`,
+`uvicorn==0.52.0`, `python-multipart==0.0.32` (Uploads). Laufzeit Python 3.11
+(`python:3.11-slim` im Dockerfile). Keine Datenbank — alles liegt als Dateien im
 Dateisystem (`config.json`, `projects/<slug>/`).
 
 ## Frontend (`static/`)
