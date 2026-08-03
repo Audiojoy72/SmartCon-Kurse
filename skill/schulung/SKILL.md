@@ -536,6 +536,45 @@ verrutscht bei jeder anderen — Kreise driften auseinander, Beschriftungen lege
   Ein `@media`-Zweig für Handys reicht nicht — die Desktop-Breiten sind der häufigere
   Fehlerfall.
 
+#### Bedienleiste bleibt im Blick — „Weiter" nie ans Seitenende hängen
+
+Die Schritt-/Bedienleiste (`Weiter`, `Zurück`, Schrittzähler) steht im Markup **nach**
+der Bühne. Ohne Gegenmaßnahme landet sie damit unterhalb des Inhalts und ist bei einer
+gut gefüllten Szene mehrere hundert Pixel außerhalb des Fensters. Das Ergebnis ist ein
+Ping-Pong: runterscrollen, „Weiter" klicken, wieder hochscrollen, lesen, wieder runter.
+Am 03.08.2026 in einer fertigen Schulung gemessen — der Button lag **konstant 637 px
+unter der Fensterkante**, und zwar schon ab Schritt 1.
+
+- **Die Leiste klebt am unteren Fensterrand** — egal wie sie im konkreten Bau heißt
+  (`.stepbar`, `.btnrow`, …):
+  ```css
+  .stepbar{                  /* die Klasse der eigenen Bedienleiste */
+    position: sticky;
+    bottom: 0;
+    z-index: 30;
+    background: var(--bg);   /* deckend, sonst scrollt Text sichtbar darunter durch */
+    padding-bottom: 14px;
+  }
+  ```
+  Deckender Hintergrund ist Pflicht, sonst schimmert der durchlaufende Inhalt durch.
+- **Nicht auf „wächst schon mit" verlassen.** Der Button wandert zwar mit dem Inhalt,
+  aber genau das ist das Problem — er wandert aus dem Sichtfeld heraus. Sticky hält ihn
+  an derselben Stelle, egal wie lang die Szene wird.
+- **Auf dem Handy kompakt halten.** Eine umbrechende Flex-Zeile aus Zurück, Weiter,
+  Zähler, Punkten und Tastatur-Hinweis belegt schnell ein Fünftel der Fensterhöhe —
+  bei einer klebenden Leiste geht das dauerhaft vom Lesebereich ab. Der Tastatur-Hinweis
+  ist auf dem Handy ohnehin gegenstandslos:
+  ```css
+  @media (max-width: 560px){
+    .stepbar .hint{display:none}
+    .stepbar{gap:10px; padding-top:12px; padding-bottom:10px}
+  }
+  ```
+  Richtwert: die Leiste soll unter 15 % der Fensterhöhe bleiben.
+- **Gilt für jedes Preset**, nicht nur für den medienlosen Zweig: Auch Szenen mit Video
+  haben eine Bedienleiste.
+- **Im Druck-`@media` ausblenden** (steht dort meist schon in der `.no-print`-Liste).
+
 ## Phase 10 — Browser-Test (Pflicht, vollständig)
 
 Lokal serven (`python3 -m http.server`), dann komplett durchklicken:
@@ -555,10 +594,21 @@ Lokal serven (`python3 -m http.server`), dann komplett durchklicken:
      return r.width && r.right > innerWidth + 1;
    }).map(e => e.className)          // muss [] sein
    ```
-7. Kontrast der tatsächlich gesetzten Farben nachrechnen:
+7. **„Weiter" muss ohne Scrollen erreichbar sein** — in der längsten Szene, bei 800 px
+   Fensterhöhe, an jeder Scroll-Position. Der Test sucht über den Beschriftungstext,
+   nicht über eine ID (die heißt in jeder Schulung anders):
+   ```js
+   scrollTo(0, 0);                    // gerade erst in die Szene gesprungen
+   [...document.querySelectorAll('button')]
+     .filter(b => /weiter|zur übung|nächste/i.test(b.textContent) && b.offsetParent)
+     .map(b => { const r = b.getBoundingClientRect();
+                 return [b.textContent.trim(), r.bottom <= innerHeight && r.top >= 0]; })
+   // jeder Eintrag muss auf true enden
+   ```
+8. Kontrast der tatsächlich gesetzten Farben nachrechnen:
    `python3 scripts/kontrast.py "<akzent>" "<panel>"` (mit den Werten des Presets bzw.
    der design.md aufrufen — Akzent auf Hintergrund muss ≥ 4,5:1 liegen)
-8. Dateigröße prüfen; Server stoppen, Datei ausliefern
+9. Dateigröße prüfen; Server stoppen, Datei ausliefern
 
 ## Phase 11 — Benennen und ausliefern
 
