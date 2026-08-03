@@ -536,6 +536,33 @@ verrutscht bei jeder anderen — Kreise driften auseinander, Beschriftungen lege
   Ein `@media`-Zweig für Handys reicht nicht — die Desktop-Breiten sind der häufigere
   Fehlerfall.
 
+#### Noch nicht gezeigte Schritte belegen keinen Platz
+
+Der nächstliegende Weg, einen Schritt zu verstecken, ist `opacity: 0` — und er ist
+falsch: Das Element bleibt im Layout, also reserviert die Bühne von Anfang an die Höhe
+**aller** Schritte. Die Folge ist eine große leere Fläche unter dem Inhalt, durch die
+sich der Lernende nach jedem Klick scrollen muss, und ein „Weiter", das schon bei
+Schritt 1 am Seitenende klebt. Am 03.08.2026 in zwei fertigen Schulungen so vorgefunden.
+
+```css
+.step{ display:none; }                      /* nimmt keinen Platz */
+.step.shown{
+  display:block;
+  animation: stepIn .45s ease both;         /* Einblenden bleibt erhalten */
+}
+@keyframes stepIn{
+  from{ opacity:0; transform:translateY(14px); }
+  to{ opacity:1; transform:none; }
+}
+```
+
+`display` statt `opacity` heißt: keine CSS-`transition` mehr (die springt bei
+`display`-Wechseln), deshalb die `@keyframes`-Animation. `revealAll()` beim Verlassen
+der Szene funktioniert unverändert — es setzt weiterhin nur die Klasse.
+
+Eine `min-height` auf der Bühne (~340 px) ist trotzdem sinnvoll, damit die Seite beim
+ersten Schritt nicht springt — aber sie ersetzt nicht das Obige.
+
 #### Bedienleiste bleibt im Blick — „Weiter" nie ans Seitenende hängen
 
 Die Schritt-/Bedienleiste (`Weiter`, `Zurück`, Schrittzähler) steht im Markup **nach**
@@ -594,7 +621,13 @@ Lokal serven (`python3 -m http.server`), dann komplett durchklicken:
      return r.width && r.right > innerWidth + 1;
    }).map(e => e.className)          // muss [] sein
    ```
-7. **„Weiter" muss ohne Scrollen erreichbar sein** — in der längsten Szene, bei 800 px
+7. **Kein Leerraum durch unsichtbare Schritte** — direkt nach dem Betreten einer Szene
+   darf die Seite nicht höher sein als das Fenster, solange nur Schritt 1 steht:
+   ```js
+   document.documentElement.scrollHeight <= innerHeight + 40   // muss true sein
+   ```
+   Ist sie höher, hängen die restlichen Schritte noch mit `opacity:0` im Layout.
+8. **„Weiter" muss ohne Scrollen erreichbar sein** — in der längsten Szene, bei 800 px
    Fensterhöhe, an jeder Scroll-Position. Der Test sucht über den Beschriftungstext,
    nicht über eine ID (die heißt in jeder Schulung anders):
    ```js
@@ -605,10 +638,10 @@ Lokal serven (`python3 -m http.server`), dann komplett durchklicken:
                  return [b.textContent.trim(), r.bottom <= innerHeight && r.top >= 0]; })
    // jeder Eintrag muss auf true enden
    ```
-8. Kontrast der tatsächlich gesetzten Farben nachrechnen:
+9. Kontrast der tatsächlich gesetzten Farben nachrechnen:
    `python3 scripts/kontrast.py "<akzent>" "<panel>"` (mit den Werten des Presets bzw.
    der design.md aufrufen — Akzent auf Hintergrund muss ≥ 4,5:1 liegen)
-9. Dateigröße prüfen; Server stoppen, Datei ausliefern
+10. Dateigröße prüfen; Server stoppen, Datei ausliefern
 
 ## Phase 11 — Benennen und ausliefern
 
