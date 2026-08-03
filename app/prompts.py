@@ -62,10 +62,14 @@ def _briefing_block(brief: dict) -> str:
 def _stil_zeile(projekt_dir: Path, stil: str) -> str:
     """Welche Stil-Quellen der Agent lesen soll.
 
-    Stil-Hierarchie laut SPEC: design.md > Preset > Default. Eine hochgeladene
-    design.md gilt deshalb AUCH dann, wenn ein Preset gewählt wurde — sie
-    ersetzt aber nur die Optik, nicht die Medien- und Kostenregeln des Presets
-    (sonst würde „kostenlos" seine 0-Credit-Garantie verlieren).
+    Preset und design.md sind zwei unabhängige Achsen: Das Preset bestimmt die
+    Machart (und damit den Higgsfield-Einsatz), die optionale design.md nur die
+    Optik. Eine hochgeladene Datei gilt deshalb ZUSÄTZLICH zum Preset und hat
+    bei Farben/Typografie Vorrang — die Medien- und Kostenregeln bleiben beim
+    Preset (sonst würde „kostenlos" seine 0-Credit-Garantie verlieren).
+
+    `stil == "design"` legt die App nicht mehr an; der Zweig bleibt für
+    Altprojekte, deren brief.json den Wert noch trägt.
     """
     design_datei = projekt_dir / "design.md"
     zeilen = []

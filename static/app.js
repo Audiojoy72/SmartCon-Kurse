@@ -184,24 +184,12 @@ async function ladePresets() {
         (p.kosten ? `<span class="pk-kosten">${p.kosten}</span>` : "");
       box.appendChild(karte);
     }
-    const eigene = document.createElement("label");
-    eigene.className = "preset-karte";
-    eigene.innerHTML =
-      `<input type="radio" name="stil" value="design">` +
-      `<span class="pk-name">Eigene design.md</span>` +
-      `<span class="pk-beschr">Vollständig eigene Design-Vorgabe — die Datei wird hochgeladen und ersetzt das Preset.</span>`;
-    box.appendChild(eigene);
+    // Kein Stil „eigene design.md": Der Stil bestimmt die Machart (und damit den
+    // Higgsfield-Einsatz), die optionale design.md nur die Optik. Beides ist
+    // unabhängig, deshalb liegt der Upload außerhalb dieser Auswahl.
     box.querySelectorAll('input[name="stil"]').forEach((r) =>
       r.addEventListener("change", () => {
         const gewaehlt = box.querySelector('input[name="stil"]:checked').value;
-        const upload = document.getElementById("design-upload-wrap");
-        upload.hidden = gewaehlt !== "design";
-        // Beim Wegschalten die Datei auch wirklich entfernen: ein verstecktes
-        // File-Feld behält seinen Inhalt und würde sonst unsichtbar mitgesendet
-        // und still das Design bestimmen.
-        if (upload.hidden) {
-          document.getElementById("projekt-form").design_md.value = "";
-        }
         // Preset „kostenlos" erzwingt KI-Medien: Nein
         const schalter = document.querySelector('input[name="ki_medien"]');
         const aus = gewaehlt === "kostenlos";

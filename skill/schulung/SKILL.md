@@ -17,18 +17,29 @@ Level-Struktur, Videos mit Voiceover, Erklär-Animationen synchron zur Stimme, S
 Entscheidungsszenarien, Wissenscheck, Fortschritt in localStorage. Läuft offline per
 Doppelklick, teilbar per Mail/Drive/LMS.
 
-## Stil-Hierarchie: design.md schlägt Preset, Preset schlägt Default
+## Preset und design.md: zwei Achsen, nicht eine Rangfolge
 
-Gestaltung, Guide-Figur und Medien-Defaults stehen in den **Presets** unter
-`reference/styles/` (`cinematic` = Default, `comic`, `corporate`, `statisch`,
-`kostenlos`).
-Liegt im Projektordner eine **`design.md`** (Kunden-CI: Akzentfarbe, Logo-Pfad, Wortmarke,
-Footer-Zeile, Stil-Hinweise — Vorlage: `reference/design-vorlage.md`), übersteuert sie das
-gewählte Preset. Es gilt also:
+**Das Preset bestimmt die Machart**, die **`design.md` nur die Optik**. Beide
+sind unabhängig und werden kombiniert — eine `design.md` ersetzt das Preset
+nicht.
 
-1. **`design.md`** (vom Nutzer mitgegeben) — höchste Priorität
-2. **gewähltes Preset** aus `reference/styles/`
-3. **Default** = Preset `cinematic`
+- **Presets** unter `reference/styles/` (`cinematic` = Default, `comic`,
+  `corporate`, `statisch`, `kostenlos`) legen Machart, Guide-Figur,
+  Medien-Defaults und Kostenrahmen fest. Damit entscheiden sie auch, **ob
+  Higgsfield überhaupt zum Einsatz kommt** (`kostenlos` = nie, 0 Credits).
+- Eine **`design.md`** im Projektordner (Kunden-CI: Akzentfarbe, Logo-Pfad,
+  Wortmarke, Footer-Zeile, Stil-Hinweise — Vorlage:
+  `reference/design-vorlage.md`) liefert Farben, Typografie und Tonalität.
+
+Bei Konflikten gilt:
+
+1. **Optik** (Farben, Schriften, Tonalität) → `design.md` schlägt das Preset
+2. **Machart, Medienplan, Kosten** → immer das Preset, auch wenn die `design.md`
+   dazu etwas sagt
+3. ohne `design.md` → Optik ebenfalls aus dem Preset, Default `cinematic`
+
+Eine `cinematic`-Schulung mit mitgegebener `design.md` ist also weiterhin
+cinematic — nur eben in der CI des Kunden.
 
 Das gewählte Preset (und ggf. die design.md) **vor Phase 2 lesen**, nicht erst vor Phase 9:
 sie bestimmen schon die Guide-Figur und die Bild-Prompts.

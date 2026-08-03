@@ -6,7 +6,7 @@
 <title>SmartCon-Schulungen</title>
 <!-- ?v= bei jeder Frontend-Änderung hochzählen — sonst hängt auf dem Handy
      die alte Fassung im Cache und der Fix ist unsichtbar. -->
-<link rel="stylesheet" href="/static/style.css?v=4">
+<link rel="stylesheet" href="/static/style.css?v=5">
 </head>
 <body>
 <header>
@@ -80,9 +80,6 @@
           <div id="preset-karten" class="preset-karten">
             <p class="muted">Lade Presets …</p>
           </div>
-          <label id="design-upload-wrap" class="design-upload" hidden>eigene design.md hochladen
-            <input name="design_md" type="file" accept=".md,text/markdown">
-          </label>
           <label class="checkbox ki-medien" id="ki-medien-wrap">
             <input name="ki_medien" type="checkbox" checked>
             KI-Medien nutzen (Higgsfield: Bilder, Videos, Voiceover — kostet Credits)
@@ -90,6 +87,12 @@
           <p class="muted" id="ki-medien-hinweis" hidden>Aus, weil das Preset
             „kostenlos" gewählt ist — bei den anderen Presets frei wählbar.</p>
         </fieldset>
+        <label id="design-upload-wrap" class="design-upload">Eigenes Design (optional)
+          <input name="design_md" type="file" accept=".md,text/markdown">
+          <span class="feld-hinweis">Eine design.md setzt Farben, Schriften und
+            Tonalität. Die Machart — ob mit KI-Videos, als Comic oder als
+            statische Seite — kommt weiter aus dem Stil oben.</span>
+        </label>
         <label>Material hochladen (optional, mehrere Dateien möglich)
           <input name="material" type="file" multiple>
         </label>
@@ -260,6 +263,6 @@
   für den tollen Skill
 </footer>
 
-<script src="/static/app.js?v=4"></script>
+<script src="/static/app.js?v=5"></script>
 </body>
 </html>

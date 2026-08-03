@@ -18,7 +18,10 @@ Danke an **Julian Ivanov** für den tollen Skill.
 - **Projekt-Wizard**: Briefing-Formular (Thema, Lernziele, Zielgruppe, Sprache, Dauer),
   Stil-Presets als Karten, Upload eigener `design.md` (Kunden-CI) und Quellmaterial
 - **Stil-System**: fünf Presets (`cinematic`, `comic`, `corporate`, `statisch`,
-  `kostenlos`) — eine eigene `design.md` schlägt jedes Preset
+  `kostenlos`) bestimmen die Machart und damit den Higgsfield-Einsatz
+- **Eigenes Design (optional)**: eine mitgegebene `design.md` setzt Farben,
+  Schriften und Tonalität — kombinierbar mit jedem Preset. Eine `cinematic`-
+  Schulung bleibt cinematic, nur eben in der CI des Kunden
 - **KI-Medien-Schalter (Ja/Nein)**: mit oder ohne Higgsfield produzieren, frei
   kombinierbar mit jedem Preset. „Nein" = 0 Credits, keine Higgsfield-Abhängigkeit
 - **Curriculum-Phase (kostenlos)**: Der Agent recherchiert und schreibt das komplette

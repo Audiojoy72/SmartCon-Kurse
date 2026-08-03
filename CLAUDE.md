@@ -72,8 +72,11 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
   `events.jsonl` pro Projekt erlaubt Replay nach Reconnect.
 - **Resume:** Agenten-Session-IDs je Phase in `status.json`; vor jedem Resume
   `runner.session_verfuegbar()` (Sessions sind cwd-gebunden!).
-- **Stil-Hierarchie:** design.md > Preset (`skill/schulung/reference/styles/`) >
-  Default `cinematic`. `kostenlos` erzwingt `ki_medien=false`.
+- **Preset vs. design.md:** zwei unabhängige Achsen. Das Preset
+  (`skill/schulung/reference/styles/`, Default `cinematic`) bestimmt Machart,
+  Medienplan und Higgsfield-Einsatz; `kostenlos` erzwingt `ki_medien=false`.
+  Eine optionale `design.md` im Projektordner liefert nur die Optik (Farben,
+  Schriften, Tonalität) und hat dort Vorrang — sie ersetzt das Preset nicht.
 - **Kosten-Disziplin:** Curriculum ist immer gratis; vor der Produktion
   Kostenplan (`kosten.json`) + Guthaben-Abgleich; Preflight vor jeder
   kostenpflichtigen Aktion.

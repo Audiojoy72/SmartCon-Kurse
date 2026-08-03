@@ -137,8 +137,17 @@ form label.checkbox input {
 
 /* Ohne diese Regel schlägt „form label { display: block }" das hidden-Attribut
    (Autor-Stylesheet gewinnt gegen das UA-Stylesheet) — versteckte Labels wie
-   der design.md-Upload oder das Sprach-Freitextfeld blieben sonst sichtbar. */
+   das Sprach-Freitextfeld blieben sonst sichtbar. */
 form label[hidden] { display: none; }
+
+/* Erklärung unter einem Feld — im Label, aber nicht fett wie das Label */
+.feld-hinweis {
+  display: block;
+  margin-top: .35rem;
+  color: var(--muted);
+  font-size: .9rem;
+  font-weight: 400;
+}
 
 fieldset {
   border: 1px solid var(--line);
