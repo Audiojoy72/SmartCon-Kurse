@@ -210,7 +210,11 @@
         </select>
       </label>
       <label>Default-design.md (optional, Pfad)
-        <input name="default_design_md" type="text" placeholder="/pfad/zu/design.md">
+        <input name="default_design_md" type="text" placeholder="/app/projects/design.md">
+        <small>Gilt für jede neue Schulung, bei der nichts hochgeladen wird. Im
+          Docker-Betrieb zählt der Pfad im Container — sichtbar sind dort nur
+          <code>/app/projects/</code> und die gemounteten Home-Verzeichnisse
+          unter <code>/root/</code>.</small>
       </label>
       <fieldset>
         <legend>Transkription (Whisper)</legend>

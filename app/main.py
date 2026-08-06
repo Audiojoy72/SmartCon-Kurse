@@ -57,6 +57,27 @@ def _projekt_oder_404(slug: str) -> dict:
     return p
 
 
+def _default_design_md() -> bytes | None:
+    """Die in den Einstellungen hinterlegte design.md, falls eine gesetzt ist.
+
+    Der Pfad wird dort aufgelöst, wo die App läuft — im Docker-Betrieb also im
+    Container. Nur Gemountetes ist dort sichtbar (config.json, projects/, die
+    Home-Verzeichnisse), das Repo-Verzeichnis selbst nicht.
+    """
+    pfad = config.load().get("default_design_md", "").strip()
+    if not pfad:
+        return None
+    try:
+        return Path(pfad).expanduser().read_bytes()
+    except OSError as e:
+        raise HTTPException(
+            400,
+            f"Default-design.md nicht lesbar: {pfad} ({e.strerror}). "
+            "Im Docker-Betrieb muss der Pfad aus Sicht des Containers gelten "
+            "(z. B. /app/projects/… oder /root/…) — oder die Datei beim "
+            "Anlegen direkt hochladen.")
+
+
 @app.post("/api/projekte", status_code=201)
 async def api_projekt_neu(
     thema: str = Form(...),
@@ -78,6 +99,8 @@ async def api_projekt_neu(
     design_bytes = None
     if design_md is not None and design_md.filename:
         design_bytes = await design_md.read()
+    if not design_bytes:
+        design_bytes = _default_design_md()
     if stil == "design" and not design_bytes:
         raise HTTPException(400, "Stil „eigene design.md“ gewählt, aber keine Datei hochgeladen")
     briefing = {

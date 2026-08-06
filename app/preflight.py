@@ -69,7 +69,13 @@ den Stand aus dem Git-Verlauf wiederherstellen:
     "design": """\
 Der hinterlegte Pfad zur design.md existiert nicht.
 Entweder den Pfad in den Einstellungen korrigieren oder die Datei anlegen —
-Vorlage zum Ausfüllen: skill/schulung/reference/design-vorlage.md""",
+Vorlage zum Ausfüllen: skill/schulung/reference/design-vorlage.md
+
+Im Docker-Betrieb zählt der Pfad aus Sicht des Containers, nicht des Hosts.
+Sichtbar sind dort nur die gemounteten Orte: /app/projects/ und die
+Home-Verzeichnisse unter /root/. Ein Pfad ins Repo-Verzeichnis geht ins
+Leere — die Datei also z. B. nach projects/ legen und
+/app/projects/<datei>.md eintragen.""",
     "whisper_api": """\
 Der Dienst muss OpenAI-kompatibel sein und verbose_json mit WORT-Zeitstempeln
 liefern (Segment-Granularität reicht dem Skill nicht — getestet wird hier
