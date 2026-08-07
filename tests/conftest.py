@@ -16,3 +16,26 @@ def projekte_tmp(tmp_path, monkeypatch):
     ziel.mkdir()
     monkeypatch.setattr(projekte, "PROJECTS", ziel)
     return ziel
+
+
+@pytest.fixture
+def client(projekte_tmp, monkeypatch):
+    """TestClient mit temporärem Projektordner und ohne echte Agentenläufe."""
+    from fastapi.testclient import TestClient
+
+    from app import config, main, runner
+
+    # Kein Test startet je einen echten Agenten: start() wird ersetzt und
+    # merkt sich nur, womit es aufgerufen wurde.
+    gestartet = []
+    monkeypatch.setattr(runner, "start",
+                        lambda *a, **kw: gestartet.append((a, kw)))
+    monkeypatch.setattr(runner, "laeuft", lambda slug: False)
+
+    # Isoliert von der echten config.json (z. B. lokal gesetztes
+    # default_design_md) — Tests, die das brauchen, überschreiben es selbst.
+    monkeypatch.setattr(config, "load", lambda: dict(config.DEFAULTS))
+
+    c = TestClient(main.app)
+    c.gestartet = gestartet
+    return c
