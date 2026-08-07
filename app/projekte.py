@@ -38,6 +38,13 @@ PHASE_PRODUKTION_LAEUFT = "produktion_laeuft"
 PHASE_FERTIG = "fertig"
 PHASE_FEHLER = "fehler"
 
+PHASE_PRAESENTATION_LAEUFT = "praesentation_laeuft"
+PHASE_PRAESENTATION_FERTIG = "praesentation_fertig"
+
+# Projektarten. Bestandsprojekte haben kein art-Feld und sind Schulungen.
+ART_SCHULUNG = "schulung"
+ART_PRAESENTATION = "praesentation"
+
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
@@ -201,10 +208,12 @@ def liste() -> list[dict]:
         if status is None:
             continue
         thema = ""
+        brief_data = {}
         brief = d / "brief.json"
         if brief.exists():
             try:
-                thema = json.loads(brief.read_text(encoding="utf-8")).get("thema", "")
+                brief_data = json.loads(brief.read_text(encoding="utf-8"))
+                thema = brief_data.get("thema", "")
             except (json.JSONDecodeError, OSError):
                 pass
         out.append({
@@ -212,6 +221,7 @@ def liste() -> list[dict]:
             "thema": thema,
             "phase": status.get("phase", PHASE_BRIEFING),
             "geaendert_am": status.get("geaendert_am", ""),
+            "art": brief_data.get("art") or ART_SCHULUNG,
         })
     out.sort(key=lambda p: p["geaendert_am"], reverse=True)
     return out
@@ -240,6 +250,14 @@ def get(slug: str) -> dict | None:
         "material": sorted(p.name for p in mat.iterdir() if p.is_file())
                     if mat.is_dir() else [],
     }
+
+
+def art(slug: str) -> str:
+    """Projektart aus der brief.json. Fehlt sie, ist es eine Schulung."""
+    p = get(slug)
+    if not p:
+        return ART_SCHULUNG
+    return (p["briefing"].get("art") or ART_SCHULUNG)
 
 
 def loeschen(slug: str) -> bool:
