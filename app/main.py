@@ -450,7 +450,6 @@ def api_ergebnis_vorschau(slug: str, dateiname: str):
 # --- Deck-Werkstatt (Präsentationen) ---------------------------------------
 
 PRAESENTATION_QUELLEN_MAX = 20000
-_DATEINAME_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
 @app.post("/api/praesentationen", status_code=201)
