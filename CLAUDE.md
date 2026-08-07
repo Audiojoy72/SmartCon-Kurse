@@ -30,14 +30,15 @@ python3 -m venv .venv
 .venv/bin/python -m app.main
 
 # Checks
+.venv/bin/pip install -r requirements-dev.txt   # einmalig
+.venv/bin/python -m pytest                      # Testsuite
 .venv/bin/python -m py_compile app/*.py
 node --check static/app.js
 bash -n skill/schulung/scripts/*.sh
 ```
 
-Kein Test-Framework — Verifikation läuft über den System-Check der App
-(`GET /api/preflight`) und End-to-End-Testprojekte (Preset `kostenlos` kostet
-nichts).
+pytest für die Logik (`tests/`), dazu der System-Check der App (`GET /api/preflight`)
+und End-to-End-Testprojekte für alles, was einen echten Agentenlauf braucht.
 
 ## Project Structure
 
