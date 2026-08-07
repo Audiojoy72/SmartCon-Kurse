@@ -23,8 +23,13 @@ def dateiname_aus_thema(thema: str) -> str:
 
 
 def dateien(projekt_dir: Path) -> list[Path]:
-    """Erzeugte PowerPoint-Dateien, jüngste zuletzt."""
-    return sorted(projekt_dir.glob("*.pptx"), key=lambda p: p.stat().st_mtime)
+    """Erzeugte PowerPoint-Dateien, jüngste zuletzt.
+
+    (mtime, name) statt nur mtime: gleiche mtime bei zwei Dateien darf nicht
+    von der Dateisystem-Reihenfolge entschieden werden (siehe
+    prompts.stoffquelle()).
+    """
+    return sorted(projekt_dir.glob("*.pptx"), key=lambda p: (p.stat().st_mtime, p.name))
 
 
 def prompt(projekt_dir: Path, brief: dict, logo_pfad: Path | None) -> str:
@@ -66,7 +71,7 @@ def prompt(projekt_dir: Path, brief: dict, logo_pfad: Path | None) -> str:
 
     ziel = projekt_dir / f"{dateiname_aus_thema(brief.get('thema', ''))}.pptx"
 
-    return f"""Du bist der Präsentations-Agent der App „SmartCon-Kurse". Dein
+    return f"""Du bist der Präsentations-Agent der App „SmartCon-Schulungen". Dein
 Arbeitsverzeichnis ist der Projektordner: {projekt_dir}
 
 ## Auftrag

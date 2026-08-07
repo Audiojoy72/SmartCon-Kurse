@@ -428,12 +428,16 @@ def stoffquelle(projekt_dir: Path) -> Path | None:
     Fehlt sie, gilt die erzeugte Lerneinheit. Ohne beides: None; der Aufrufer
     fällt dann sichtbar auf das Curriculum zurück.
     """
+    # (mtime, name) statt nur mtime: Dateien eines Uploads landen alle in
+    # derselben Schleife (projekte.create()) und können dieselbe mtime tragen
+    # — ohne Tiebreak entscheidet dann die Dateisystem-Reihenfolge, worauf
+    # die Prüfung aufbaut.
     material = projekt_dir / "material"
     if material.is_dir():
         folien = sorted(
             (p for p in material.iterdir()
              if p.is_file() and p.suffix.lower() in _FOLIEN_ENDUNGEN),
-            key=lambda p: p.stat().st_mtime)
+            key=lambda p: (p.stat().st_mtime, p.name))
         if folien:
             return folien[-1]
 
@@ -444,7 +448,7 @@ def stoffquelle(projekt_dir: Path) -> Path | None:
     seiten = sorted(
         (p for p in projekt_dir.glob("*.html")
          if p.is_file() and p.name != pruefung.HTML_DATEINAME),
-        key=lambda p: p.stat().st_mtime)
+        key=lambda p: (p.stat().st_mtime, p.name))
     return seiten[-1] if seiten else None
 
 

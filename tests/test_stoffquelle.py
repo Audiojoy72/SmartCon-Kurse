@@ -44,6 +44,22 @@ def test_hochgeladene_folien_schlagen_die_html(tmp_path):
     assert stoffquelle(tmp_path) == deck
 
 
+def test_gleiche_mtime_entscheidet_nach_name_nicht_dateisystem_reihenfolge(tmp_path):
+    # Alle Dateien eines Uploads landen in derselben Schreib-Schleife
+    # (projekte.create()) und können identische mtime tragen — ohne
+    # Tiebreak entschiede dann die Dateisystem-Reihenfolge, was die
+    # Prüfung als Stoffquelle nimmt.
+    material = tmp_path / "material"
+    material.mkdir()
+    z = material / "z-deck.pptx"
+    a = material / "a-deck.pptx"
+    z.write_bytes(b"x")
+    a.write_bytes(b"x")
+    os.utime(z, (1, 1))
+    os.utime(a, (1, 1))
+    assert stoffquelle(tmp_path) == z  # alphabetisch letzter Name gewinnt
+
+
 def test_alle_folienformate_zaehlen(tmp_path):
     material = tmp_path / "material"
     material.mkdir()

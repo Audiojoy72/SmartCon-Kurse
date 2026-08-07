@@ -95,3 +95,23 @@ def test_dateien_liefert_pptx_juengste_zuletzt(tmp_path):
 def test_dateien_ignoriert_andere_endungen(tmp_path):
     (tmp_path / "notiz.md").write_text("x")
     assert praesentation.dateien(tmp_path) == []
+
+
+def test_dateien_bei_gleicher_mtime_entscheidet_der_name(tmp_path):
+    import os
+
+    z = tmp_path / "z.pptx"
+    a = tmp_path / "a.pptx"
+    z.write_bytes(b"x")
+    a.write_bytes(b"x")
+    os.utime(z, (1, 1))
+    os.utime(a, (1, 1))
+    assert praesentation.dateien(tmp_path) == [a, z]
+
+
+def test_prompt_nennt_die_app_smartcon_schulungen(tmp_path):
+    # Konsistenz mit allen anderen Prompts (prompts.py) — die App heißt
+    # SmartCon-Schulungen, nicht SmartCon-Kurse.
+    p = praesentation.prompt(tmp_path, BRIEF, None)
+    assert "SmartCon-Schulungen" in p
+    assert "SmartCon-Kurse" not in p
