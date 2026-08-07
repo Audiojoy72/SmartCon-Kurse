@@ -42,6 +42,21 @@ def test_block_nennt_quelle_und_zielordner(tmp_path):
     assert "keine Bilder erzeugen" in block
 
 
+def test_block_verspricht_kein_festes_zwei_ziffern_format(tmp_path):
+    """folien._normalisiere_nummerierung() polstert auf die tatsächliche
+    Foliensahl (mindestens zweistellig, ab 100 Folien dreistellig) — der
+    Block darf daher kein festes „folie-NN.png" versprechen, sondern muss
+    auf das tatsächliche Glob-Muster verweisen, das folien.py selbst nutzt
+    (ziel_dir.glob("folie-*.png"))."""
+    material = tmp_path / "material"
+    material.mkdir()
+    (material / "deck.pptx").write_bytes(b"x")
+
+    block = prompts.folien_block(tmp_path, {"folien_einbetten": True})
+    assert "folie-NN" not in block
+    assert "folie-*.png" in block
+
+
 def test_block_ist_shellsicher_bei_heiklem_dateinamen(tmp_path):
     """Ein hochgeladener Dateiname mit Quote/Backtick/$ darf im emittierten
     Bash-Kommando NICHT als Command-Substitution oder Syntaxbruch wirken —

@@ -490,8 +490,11 @@ print(len(bilder), 'Folien gerendert')
 " {quelle_arg} {ziel_arg}
 ```
 
-2. Binde die entstandenen `folie-NN.png` als Data-URI in die Lerneinheit ein —
-   je Level die Folien, die den Stoff dieses Levels tragen.
+2. Binde alle PNG-Dateien, die danach in {ziel} liegen (Muster
+   `folie-*.png`, alphabetisch sortiert = Foliennummer — die Breite der
+   Nummer richtet sich nach der Folienzahl, KEIN festes Zwei-Ziffern-Format
+   annehmen), als Data-URI in die Lerneinheit ein — je Level die Folien, die
+   den Stoff dieses Levels tragen.
 3. **Für die Level keine Bilder erzeugen** und keine Filme anfordern: Der
    Foliensatz ist die Optik. Voiceover und Animationen bleiben erlaubt.
 4. Halte im Curriculum fest, welche Folie zu welchem Level gehört.
