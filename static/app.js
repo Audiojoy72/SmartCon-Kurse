@@ -7,6 +7,10 @@ document.querySelectorAll(".tab").forEach((btn) => {
     document.querySelectorAll(".view").forEach((v) => v.classList.remove("aktiv"));
     btn.classList.add("aktiv");
     document.getElementById("view-" + btn.dataset.tab).classList.add("aktiv");
+    if (btn.dataset.tab === "decks") {
+      deckPanel("dv-liste");
+      ladeDecks();
+    }
   });
 });
 
@@ -139,10 +143,17 @@ let aktuellerSlug = null;
 let eventQuelle = null;
 let listeTimer = null;
 
-function zeigePanel(id) {
-  ["pv-liste", "pv-formular", "pv-detail"].forEach((p) => {
+// Blendet innerhalb einer Ansicht genau ein Unterpanel ein (Liste/Formular/
+// Detail) und alle anderen aus. Von zeigePanel() (Projekte) und deckPanel()
+// (Präsentationen) genutzt.
+function zeigeUnterpanel(id, panels) {
+  panels.forEach((p) => {
     document.getElementById(p).hidden = p !== id;
   });
+}
+
+function zeigePanel(id) {
+  zeigeUnterpanel(id, ["pv-liste", "pv-formular", "pv-detail"]);
   if (id !== "pv-liste") listePollingStoppen();
 }
 
@@ -762,3 +773,106 @@ async function ladeErgebnis(phase) {
     liste.appendChild(zeile);
   }
 }
+
+// ==========================================================================
+// Präsentationen (Deck-Werkstatt)
+// ==========================================================================
+
+const DECK_PHASEN_LABEL = {
+  praesentation_laeuft: "Präsentation läuft",
+  praesentation_fertig: "fertig",
+  fehler: "Fehler",
+};
+let deckSlug = null;
+let deckQuelle = null;
+let deckTimer = null;
+
+function deckPanel(id) {
+  zeigeUnterpanel(id, ["dv-liste", "dv-formular", "dv-detail"]);
+}
+
+async function ladeDecks() {
+  const antwort = await fetch("/api/projekte");
+  const data = await antwort.json();
+  const decks = data.projekte.filter((p) => p.art === "praesentation");
+  const ziel = document.getElementById("deck-liste");
+  if (!decks.length) {
+    ziel.innerHTML = "<p class='muted'>Noch keine Präsentation erzeugt.</p>";
+    return;
+  }
+  ziel.innerHTML = decks.map((p) => `
+    <button class="karte" data-slug="${esc(p.slug)}">
+      <strong>${esc(p.thema || p.slug)}</strong>
+      <span class="badge">${esc(DECK_PHASEN_LABEL[p.phase] || p.phase)}</span>
+    </button>`).join("");
+  ziel.querySelectorAll("[data-slug]").forEach((el) => {
+    el.addEventListener("click", () => oeffneDeck(el.dataset.slug));
+  });
+}
+
+async function oeffneDeck(slug) {
+  deckSlug = slug;
+  deckPanel("dv-detail");
+  document.getElementById("deck-log").innerHTML = "";
+  await aktualisiereDeck();
+  deckSseVerbinden(slug);
+}
+
+async function aktualisiereDeck() {
+  const antwort = await fetch(`/api/praesentationen/${deckSlug}`);
+  if (!antwort.ok) return;
+  const stand = await antwort.json();
+  document.getElementById("deck-titel").textContent = stand.thema || deckSlug;
+  document.getElementById("deck-badge").textContent =
+    DECK_PHASEN_LABEL[stand.phase] || stand.phase;
+
+  const ziel = document.getElementById("deck-dateien");
+  ziel.innerHTML = stand.dateien.length
+    ? "<h3>Ergebnis</h3>" + stand.dateien.map((d) => `
+        <a class="download" href="/api/praesentationen/${encodeURIComponent(deckSlug)}/datei/${encodeURIComponent(d.name)}">
+          ${esc(d.name)} <span class="muted">${fmtGroesse(d.groesse)}</span></a>`).join("")
+    : "";
+
+  if (stand.laeuft) {
+    if (!deckTimer) deckTimer = setInterval(aktualisiereDeck, 5000);
+  } else if (deckTimer) {
+    clearInterval(deckTimer);
+    deckTimer = null;
+  }
+}
+
+function deckSseVerbinden(slug) {
+  if (deckQuelle) deckQuelle.close();
+  deckQuelle = new EventSource(`/api/projekte/${encodeURIComponent(slug)}/events`);
+  const log = document.getElementById("deck-log");
+  deckQuelle.onmessage = (e) => {
+    const ereignis = JSON.parse(e.data);
+    const zeile = document.createElement("p");
+    zeile.textContent = ereignis.text || `${ereignis.typ}: ${ereignis.tool || ""}`;
+    log.appendChild(zeile);
+    log.scrollTop = log.scrollHeight;
+    if (ereignis.typ === "fertig") aktualisiereDeck();
+  };
+}
+
+document.getElementById("btn-deck-neu").addEventListener("click", () => deckPanel("dv-formular"));
+document.getElementById("btn-deck-form-zurueck").addEventListener("click", () => deckPanel("dv-liste"));
+document.getElementById("btn-deck-zurueck").addEventListener("click", () => {
+  if (deckQuelle) deckQuelle.close();
+  if (deckTimer) { clearInterval(deckTimer); deckTimer = null; }
+  deckPanel("dv-liste");
+  ladeDecks();
+});
+
+document.getElementById("deck-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const status = document.getElementById("deck-form-status");
+  status.textContent = "Wird angelegt …";
+  const antwort = await fetch("/api/praesentationen",
+    { method: "POST", body: new FormData(e.target) });
+  const ergebnis = await antwort.json();
+  if (!antwort.ok) { status.textContent = `Fehler: ${ergebnis.detail}`; return; }
+  status.textContent = "";
+  e.target.reset();
+  oeffneDeck(ergebnis.slug);
+});

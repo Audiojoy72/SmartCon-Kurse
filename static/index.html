@@ -6,13 +6,14 @@
 <title>SmartCon-Schulungen</title>
 <!-- ?v= bei jeder Frontend-Änderung hochzählen — sonst hängt auf dem Handy
      die alte Fassung im Cache und der Fix ist unsichtbar. -->
-<link rel="stylesheet" href="/static/style.css?v=6">
+<link rel="stylesheet" href="/static/style.css?v=7">
 </head>
 <body>
 <header>
   <h1>SmartCon-Schulungen</h1>
   <nav>
     <button id="tab-projekte" class="tab aktiv" data-tab="projekte">Projekte</button>
+    <button id="tab-decks" class="tab" data-tab="decks">Präsentationen</button>
     <button id="tab-ampel" class="tab" data-tab="ampel">System-Check</button>
     <button id="tab-settings" class="tab" data-tab="settings">Einstellungen</button>
   </nav>
@@ -190,6 +191,54 @@
     </div>
   </section>
 
+  <section id="view-decks" class="view">
+    <div id="dv-liste">
+      <div class="view-kopf">
+        <h2>Präsentationen</h2>
+        <button id="btn-deck-neu">Neue Präsentation</button>
+      </div>
+      <p class="muted">Thema und Quellen rein, PowerPoint im AI-SmartCon-CI
+        raus. Kostet keine Higgsfield-Credits.</p>
+      <div id="deck-liste"></div>
+    </div>
+
+    <div id="dv-formular" hidden>
+      <div class="view-kopf">
+        <h2>Neue Präsentation</h2>
+        <button id="btn-deck-form-zurueck">Zurück</button>
+      </div>
+      <form id="deck-form">
+        <label>Thema <input name="thema" required></label>
+        <label>Zielgruppe <input name="zielgruppe"></label>
+        <label>Inhalte / Lernziele <textarea name="lernziele" rows="3"></textarea></label>
+        <label>Vorwissen <input name="vorwissen"></label>
+        <label>Sprache <input name="sprache" value="Deutsch"></label>
+        <label>Dauer <input name="dauer" placeholder="45 Minuten"></label>
+        <label>Quellen (eine je Zeile)
+          <textarea name="quellen" rows="4"
+            placeholder="https://eur-lex.europa.eu/…"></textarea></label>
+        <label>Material (optional, geht der Websuche vor)
+          <input name="material" type="file" multiple></label>
+        <div class="zeile">
+          <button type="submit">Präsentation erzeugen</button>
+          <span id="deck-form-status" class="muted"></span>
+        </div>
+      </form>
+    </div>
+
+    <div id="dv-detail" hidden>
+      <div class="view-kopf">
+        <h2 id="deck-titel">Präsentation</h2>
+        <button id="btn-deck-zurueck">Zurück zur Liste</button>
+      </div>
+      <div class="zeile">
+        <span id="deck-badge" class="badge"></span>
+      </div>
+      <div id="deck-log" class="log"><p class="muted">Noch kein Lauf gestartet.</p></div>
+      <div id="deck-dateien"></div>
+    </div>
+  </section>
+
   <section id="view-ampel" class="view">
     <div class="view-kopf">
       <h2>System-Check</h2>
@@ -277,6 +326,6 @@
   für den tollen Skill
 </footer>
 
-<script src="/static/app.js?v=6"></script>
+<script src="/static/app.js?v=7"></script>
 </body>
 </html>
