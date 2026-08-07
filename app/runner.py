@@ -27,15 +27,17 @@ from . import config, projekte
 ALLOWED_TOOLS = "Bash,Edit,Write,Read,Glob,Grep,WebSearch,WebFetch"
 
 # Nach erfolgreichem Lauf: Phase der App-State-Machine je Lauf-Typ.
-# „kostenplan" ist nicht dabei — er kehrt zur Phase vor dem Lauf zurück
-# (siehe _phase_nach_erfolg), damit ein bereits freigegebenes Projekt
-# nicht auf „curriculum_fertig" zurückfällt.
+# „kostenplan" und „pruefung" sind nicht dabei — sie kehren zur Phase vor dem
+# Lauf zurück (siehe _phase_nach_erfolg): ein Kostenplan darf ein bereits
+# freigegebenes Projekt nicht auf „curriculum_fertig" zurückwerfen, und eine
+# Prüfung ist ein Seiteneffekt der aktuellen Phase, kein Schritt der
+# Haupt-State-Machine — sie darf die Phase weder bei Erfolg noch bei
+# Fehlschlag verändern (sonst verliert eine fertige Schulung ihren Status).
 PHASE_NACH_ERFOLG = {
     "curriculum": projekte.PHASE_CURRICULUM_FERTIG,
     "freigabe": projekte.PHASE_FREIGEGEBEN,
     "produktion": projekte.PHASE_FERTIG,
     "praesentation": projekte.PHASE_PRAESENTATION_FERTIG,
-    "pruefung": projekte.PHASE_FERTIG,
 }
 
 _laeufe: dict[str, dict] = {}          # slug -> {phase, gestartet}
@@ -142,7 +144,27 @@ def _phase_nach_erfolg(slug: str, phase: str) -> str | None:
         # Der Kostenplan ändert den Gate-Status nicht — zurück zur Vorher-Phase
         return (_laeufe.get(slug, {}).get("zurueck")
                 or projekte.PHASE_CURRICULUM_FERTIG)
+    if phase == "pruefung":
+        # Eine Prüfung ändert die Phase des Projekts nicht — zurück zur
+        # Vorher-Phase (siehe Kommentar bei PHASE_NACH_ERFOLG).
+        return (_laeufe.get(slug, {}).get("zurueck")
+                or projekte.PHASE_FERTIG)
     return PHASE_NACH_ERFOLG.get(phase)
+
+
+def _phase_bei_fehler(slug: str, phase: str) -> str:
+    """Phase, die nach einem fehlgeschlagenen Lauf gesetzt wird.
+
+    Für „pruefung" dieselbe Regel wie bei Erfolg: zurück zur Vorher-Phase,
+    statt eines bereits „fertig" oder „curriculum_fertig" Projekts den
+    Fehler-Status überzustülpen und damit Ergebnis-Liste bzw. Prüfungsblock
+    zu verstecken. Der Fehlertext landet trotzdem in „letzter_fehler"
+    (set_phase() schreibt ihn unabhängig von der Ziel-Phase).
+    """
+    if phase == "pruefung":
+        return (_laeufe.get(slug, {}).get("zurueck")
+                or projekte.PHASE_FERTIG)
+    return projekte.PHASE_FEHLER
 
 
 def _kommando(backend: str, prompt: str, session_id: str | None) -> list[str]:
@@ -206,7 +228,7 @@ def _parse_claude_zeile(slug: str, phase: str, zeile: str,
             _emit(slug, "fertig", text=ev.get("result", ""), dauer=dauer)
         else:
             meldung = ev.get("result") or f"Agent abgebrochen ({ev.get('subtype')})"
-            projekte.set_phase(slug, projekte.PHASE_FEHLER, fehler=meldung[:500])
+            projekte.set_phase(slug, _phase_bei_fehler(slug, phase), fehler=meldung[:500])
             _emit(slug, "fehler", text=meldung)
 
 
@@ -229,7 +251,7 @@ def _fuehre_aus(slug: str, phase: str, prompt: str,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, bufsize=1)
     except FileNotFoundError:
-        projekte.set_phase(slug, projekte.PHASE_FEHLER,
+        projekte.set_phase(slug, _phase_bei_fehler(slug, phase),
                            fehler=f"CLI „{backend}“ nicht gefunden")
         _emit(slug, "fehler",
               text=f"CLI „{backend}“ nicht gefunden — System-Check prüfen.")
@@ -260,11 +282,11 @@ def _fuehre_aus(slug: str, phase: str, prompt: str,
                 _emit(slug, "fertig", text="", dauer=dauer)
             else:
                 meldung = fehltext[-500:] or f"Agent mit Exit-Code {rc} beendet"
-                projekte.set_phase(slug, projekte.PHASE_FEHLER,
+                projekte.set_phase(slug, _phase_bei_fehler(slug, phase),
                                    fehler=meldung[:500])
                 _emit(slug, "fehler", text=meldung)
     except Exception as e:  # nie still verschlucken — der Nutzer sieht nur den Stream
-        projekte.set_phase(slug, projekte.PHASE_FEHLER, fehler=str(e)[:500])
+        projekte.set_phase(slug, _phase_bei_fehler(slug, phase), fehler=str(e)[:500])
         _emit(slug, "fehler", text=f"Interner Fehler im Runner: {e}")
     finally:
         with _laeufe_lock:
