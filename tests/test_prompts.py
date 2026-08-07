@@ -1,7 +1,5 @@
 """Prompt-Bausteine: Was im Arbeitsauftrag steht, entscheidet über das Ergebnis."""
 
-import json
-
 from app import prompts
 
 BRIEF = {
@@ -23,16 +21,26 @@ def test_presets_sind_vollstaendig_und_beschrieben():
     assert all(p.get("titel") and p.get("beschreibung") for p in prompts.presets())
 
 
-def test_kostenlos_erzwingt_keine_ki_medien():
+def test_kostenlos_erzwingt_keine_ki_medien(tmp_path):
     # Preset kostenlos ist die 0-Credit-Zusage der App — sie darf nicht kippen.
-    # Die presets()-Funktion extrahiert das Feld "ki_medien" nicht, sondern den
-    # Kostenrahmen direkt aus "## Kostenrahmen" im Markdown. Wir prüfen die Tatsache
-    # (kostenlos = 0 Credits), indem wir das kosten-Feld checken.
-    kostenlos = [p for p in prompts.presets() if p["name"] == "kostenlos"][0]
-    assert "0 Credits" in kostenlos.get("kosten", "")
+    # Die Erzwingung lebt in curriculum_prompt() (Zeile 110-111):
+    # "ki_medien = (False if stil == 'kostenlos' else ...)"
+    # Wir testen die tatsächliche Enforcement, indem wir curriculum_prompt()
+    # mit stil="kostenlos" aufrufen und prüfen, dass der medienlose Block
+    # im Output erscheint.
+    brief_kostenlos = {**BRIEF, "stil": "kostenlos"}
+    prompt = prompts.curriculum_prompt(tmp_path, brief_kostenlos, [])
+    # Wenn stil="kostenlos", wird ki_medien zwingend False → der Prompt
+    # enthält den Block "## KI-Medien: Nein — medienloses Curriculum (0 Credits)"
+    assert "KI-Medien: Nein" in prompt
+    assert "0 Credits" in prompt
+    assert "schrittgesteuerte HTML-Szene" in prompt
 
 
 def test_curriculum_prompt_nennt_projektordner_und_briefing(tmp_path):
+    # ABWEICHUNG vom Brief: curriculum_prompt() erfordert 3 Parameter
+    # (projekt_dir, brief, material_dateien), der Brief zeigte nur 2.
+    # Wir übergeben [] für material_dateien.
     prompt = prompts.curriculum_prompt(tmp_path, BRIEF, [])
     assert str(tmp_path) in prompt
     assert BRIEF["thema"] in prompt
@@ -40,6 +48,7 @@ def test_curriculum_prompt_nennt_projektordner_und_briefing(tmp_path):
 
 
 def test_curriculum_prompt_erwaehnt_design_md_nur_wenn_sie_existiert(tmp_path):
+    # ABWEICHUNG vom Brief: curriculum_prompt() erfordert 3 Parameter (s. o.)
     ohne = prompts.curriculum_prompt(tmp_path, BRIEF, [])
     assert "design.md" not in ohne
 
