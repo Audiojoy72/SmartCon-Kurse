@@ -690,6 +690,7 @@ async function ladeProduktion(projekt) {
     verbrauchTimer = setInterval(aktualisiereVerbrauch, 30000);
   }
   ladeErgebnis(phase);
+  ladePruefung(projekt);
 }
 
 async function aktualisiereVerbrauch() {
@@ -773,6 +774,52 @@ async function ladeErgebnis(phase) {
     liste.appendChild(zeile);
   }
 }
+
+/* ---------- Prüfung ---------- */
+
+const PRUEFUNG_PHASEN = ["fertig", "pruefung_laeuft"];
+
+async function ladePruefung(projekt) {
+  const block = document.getElementById("pruefungsblock");
+  block.hidden = !PRUEFUNG_PHASEN.includes(projekt.status.phase);
+  if (block.hidden || !aktuellerSlug) return;
+
+  const ziel = document.getElementById("pruefung-ergebnis");
+  const res = await fetch(`/api/projekte/${aktuellerSlug}/pruefung`);
+  if (res.status === 404) {
+    ziel.innerHTML = "<p class='muted'>Noch keine Prüfung erzeugt.</p>";
+    return;
+  }
+  const daten = await res.json();
+  if (!res.ok) {
+    ziel.innerHTML = `<p class="muted">Fehler: ${esc(daten.detail)}</p>`;
+    return;
+  }
+  ziel.innerHTML =
+    `<p><strong>${esc(daten.titel)}</strong> — ${daten.fragen.length} Fragen, ` +
+    `bestanden ab ${daten.bestehensgrenze} %.</p>` +
+    `<a class="download" href="/api/projekte/${aktuellerSlug}/pruefung.html">` +
+    `Prüfung als HTML herunterladen</a>`;
+}
+
+document.getElementById("btn-pruefung-start").addEventListener("click", async () => {
+  if (!aktuellerSlug) return;
+  const status = document.getElementById("pruefung-status");
+  const grenze = Number(document.getElementById("bestehensgrenze").value);
+  const res = await fetch(`/api/projekte/${aktuellerSlug}/pruefung`,
+    { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bestehensgrenze: grenze }) });
+  if (!res.ok) {
+    const fehler = await res.json().catch(() => ({}));
+    status.textContent = "Fehler: " + (fehler.detail || res.status);
+    return;
+  }
+  status.textContent = "Wird erzeugt — Fortschritt im Log oben …";
+  document.getElementById("lauf-log").innerHTML = "";
+  sseVerbinden(aktuellerSlug);
+  aktualisiereDetail();
+  ladeProduktion();
+});
 
 // ==========================================================================
 // Präsentationen (Deck-Werkstatt)

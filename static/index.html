@@ -6,7 +6,7 @@
 <title>SmartCon-Schulungen</title>
 <!-- ?v= bei jeder Frontend-Änderung hochzählen — sonst hängt auf dem Handy
      die alte Fassung im Cache und der Fix ist unsichtbar. -->
-<link rel="stylesheet" href="/static/style.css?v=7">
+<link rel="stylesheet" href="/static/style.css?v=8">
 </head>
 <body>
 <header>
@@ -173,6 +173,22 @@
            kosten erneut Credits.</p>
       </div>
 
+      <!-- Prüfung: sichtbar in den Phasen „fertig" und „pruefung_laeuft" -->
+      <div id="pruefungsblock" hidden>
+        <h3>Abschlussprüfung</h3>
+        <p class="muted">Gefragt wird nur, was ausgeliefert wurde: eine
+          hochgeladene Präsentation schlägt die erzeugte Lerneinheit, beide
+          schlagen das Curriculum.</p>
+        <div class="zeile">
+          <label>Bestehensgrenze (%)
+            <input id="bestehensgrenze" type="number" min="1" max="100" value="70">
+          </label>
+          <button id="btn-pruefung-start">Prüfung erzeugen</button>
+          <span id="pruefung-status" class="muted"></span>
+        </div>
+        <div id="pruefung-ergebnis"></div>
+      </div>
+
       <!-- Löschen: immer sichtbar, ganz unten, zweistufig bestätigt -->
       <div id="loeschen">
         <button id="btn-loeschen" class="gefahr">Schulung löschen</button>
@@ -326,6 +342,6 @@
   für den tollen Skill
 </footer>
 
-<script src="/static/app.js?v=7"></script>
+<script src="/static/app.js?v=8"></script>
 </body>
 </html>
