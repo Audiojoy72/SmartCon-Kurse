@@ -6,7 +6,7 @@
 <title>SmartCon-Schulungen</title>
 <!-- ?v= bei jeder Frontend-Änderung hochzählen — sonst hängt auf dem Handy
      die alte Fassung im Cache und der Fix ist unsichtbar. -->
-<link rel="stylesheet" href="/static/style.css?v=5">
+<link rel="stylesheet" href="/static/style.css?v=6">
 </head>
 <body>
 <header>
@@ -216,6 +216,16 @@
           <code>/app/projects/</code> und die gemounteten Home-Verzeichnisse
           unter <code>/root/</code>.</small>
       </label>
+      <label>Haus-Logo (PNG, optional)
+        <input id="logo-datei" type="file" accept="image/png">
+        <small>Wird in Präsentationen eingebettet. Ohne Logo bricht ein
+          Präsentationslauf ab, statt einen Ersatz zu erfinden.</small>
+      </label>
+      <div class="zeile">
+        <button type="button" id="btn-logo-upload">Logo hochladen</button>
+        <button type="button" id="btn-logo-loeschen">Entfernen</button>
+        <span id="logo-status" class="muted"></span>
+      </div>
       <fieldset>
         <legend>Transkription (Whisper)</legend>
         <label>Modus
@@ -267,6 +277,6 @@
   für den tollen Skill
 </footer>
 
-<script src="/static/app.js?v=5"></script>
+<script src="/static/app.js?v=6"></script>
 </body>
 </html>

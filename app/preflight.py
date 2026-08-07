@@ -11,6 +11,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from . import config
+
 ROOT = Path(__file__).resolve().parent.parent
 TIMEOUT = 20
 
@@ -76,6 +78,13 @@ Sichtbar sind dort nur die gemounteten Orte: /app/projects/ und die
 Home-Verzeichnisse unter /root/. Ein Pfad ins Repo-Verzeichnis geht ins
 Leere — die Datei also z. B. nach projects/ legen und
 /app/projects/<datei>.md eintragen.""",
+    "logo": """\
+Der Präsentations-Skill bettet das AI-SmartCon-Logo in jede Folie ein und
+bricht ohne Logo bewusst ab, statt einen Ersatz zu erfinden.
+
+Hochladen unter Einstellungen → „Haus-Logo (PNG)". Die Datei liegt danach als
+config-logo.png neben der config.json und wird nicht mitversioniert.
+Vorlage: logo-glow.png aus dem AI-SmartCon-Brand-Kit.""",
     "praesentation_skill": """\
 Der Präsentations-Skill ist ein Plugin-Skill und wird nicht ins Image kopiert,
 sondern in docker-compose.yml zusätzlich gemountet:
@@ -270,6 +279,15 @@ def run_all(cfg: dict) -> list[dict]:
                    "hint": "" if skill_da else "nur für Präsentations-Läufe nötig — "
                                                 "Plugin-Version in docker-compose.yml prüfen",
                    "anleitung": ANLEITUNG["praesentation_skill"]})
+
+    # Haus-Logo (optional, aber Pflicht für Präsentationsläufe)
+    hat_logo = config.standard_logo() is not None
+    checks.append({"id": "logo", "name": "Haus-Logo (Präsentationen)",
+                   "status": "ok" if hat_logo else "warn",
+                   "detail": (f"hinterlegt, {len(config.standard_logo())} Bytes"
+                              if hat_logo else "keins hinterlegt"),
+                   "hint": "" if hat_logo else "nur für Präsentationen nötig",
+                   "anleitung": ANLEITUNG["logo"]})
 
     checks.append({"id": "python", "name": "Python",
                    "status": "ok",

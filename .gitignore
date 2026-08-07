@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 config.json
+config-logo.png
 projects/
 .DS_Store
 aios-uploads/

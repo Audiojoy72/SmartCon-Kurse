@@ -70,6 +70,26 @@ document.getElementById("btn-openrouter").addEventListener("click", () => {
   document.querySelector('[name="whisper_api_url"]').value = "https://openrouter.ai/api/v1";
 });
 
+document.getElementById('btn-logo-upload').addEventListener('click', async () => {
+  const feld = document.getElementById('logo-datei');
+  const status = document.getElementById('logo-status');
+  if (!feld.files.length) { status.textContent = 'Keine Datei gewählt.'; return; }
+  const daten = new FormData();
+  daten.append('logo', feld.files[0]);
+  const antwort = await fetch('/api/config/logo', { method: 'POST', body: daten });
+  const ergebnis = await antwort.json();
+  status.textContent = antwort.ok
+    ? `Gespeichert (${ergebnis.groesse} Bytes).`
+    : `Fehler: ${ergebnis.detail}`;
+  ladeAmpel();
+});
+
+document.getElementById('btn-logo-loeschen').addEventListener('click', async () => {
+  await fetch('/api/config/logo', { method: 'DELETE' });
+  document.getElementById('logo-status').textContent = 'Entfernt.';
+  ladeAmpel();
+});
+
 document.getElementById("settings-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = e.target;

@@ -37,6 +37,25 @@ async def api_config_post(cfg: dict):
     return config.save(cfg)
 
 
+@app.post("/api/config/logo")
+async def api_config_logo(logo: UploadFile = File(...)):
+    """Haus-Logo hinterlegen (PNG). Ersetzt ein vorhandenes."""
+    daten = await logo.read()
+    if not daten:
+        raise HTTPException(400, "Leere Datei")
+    try:
+        config.logo_speichern(daten)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "groesse": len(daten)}
+
+
+@app.delete("/api/config/logo")
+def api_config_logo_loeschen():
+    config.logo_loeschen()
+    return {"ok": True}
+
+
 # --- Projekte -------------------------------------------------------------
 
 @app.get("/api/projekte")

@@ -48,3 +48,29 @@ def save(cfg: dict) -> dict:
         json.dumps(clean, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
     return clean
+
+
+# Haus-Logo für den Präsentations-Skill. Liegt neben der config.json und ist
+# gitignored — ins öffentliche Repo gehört keine Bildmarke.
+LOGO_PFAD = ROOT / "config-logo.png"
+
+_PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+
+
+def standard_logo() -> bytes | None:
+    """Das hinterlegte Logo, oder None."""
+    try:
+        return LOGO_PFAD.read_bytes()
+    except OSError:
+        return None
+
+
+def logo_speichern(daten: bytes) -> None:
+    """Legt das Logo ab. Nur PNG — der Skill bettet es unverändert ein."""
+    if not daten.startswith(_PNG_MAGIC):
+        raise ValueError("Nur PNG-Dateien werden angenommen")
+    LOGO_PFAD.write_bytes(daten)
+
+
+def logo_loeschen() -> None:
+    LOGO_PFAD.unlink(missing_ok=True)
