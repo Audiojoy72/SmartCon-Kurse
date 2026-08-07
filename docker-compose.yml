@@ -14,6 +14,12 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./config.json:/app/config.json
+      # Haus-Logo für den Präsentations-Skill (config-logo.png, gitignored).
+      # ACHTUNG Docker-Falle: fehlt die Datei auf dem Host beim ersten Start,
+      # legt Docker an dieser Stelle statt der erwarteten Datei ein VERZEICHNIS
+      # an — danach schlägt jeder Logo-Upload fehl. Deshalb vor jedem
+      # "docker compose up" absichern: touch config-logo.png (siehe CLAUDE.md).
+      - ./config-logo.png:/app/config-logo.png
       - ./projects:/app/projects
       # Anmeldungen (read-write, die CLIs pflegen dort Tokens/Sessions)
       - $HOME/.claude:/root/.claude

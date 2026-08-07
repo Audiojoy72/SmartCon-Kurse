@@ -22,6 +22,7 @@ Vanilla JS ohne Build, kein DB (Dateisystem), Docker als empfohlener Betrieb.
 
 ```sh
 # Betrieb (empfohlen)
+touch config-logo.png                             # sonst legt Docker dort ein Verzeichnis an
 docker compose build && docker compose up -d     # App auf Port 8710
 
 # Entwicklung ohne Docker
@@ -137,3 +138,7 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
 - `projects/` ist gitignored — fertige Schulungen liegen also **nirgendwo sonst**. Wer
   eine behalten will, sichert sie selbst weg (Nextcloud `AI-SmartCon/Schulungen/`).
 - Whisper-Tunnel (Referenz-Setup): systemd-User-Unit `whisper-tunnel.service`.
+- `config-logo.png` ist wie `config.json` per Bind-Mount eingebunden (Dateipfad,
+  nicht Verzeichnis). Fehlt die Datei auf dem Host beim ersten `docker compose
+  up`, legt Docker an der Stelle ein Verzeichnis an — danach schlägt jeder
+  Logo-Upload fehl. Vor dem ersten Start: `touch config-logo.png`.

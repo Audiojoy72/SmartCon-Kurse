@@ -281,12 +281,12 @@ def run_all(cfg: dict) -> list[dict]:
                    "anleitung": ANLEITUNG["praesentation_skill"]})
 
     # Haus-Logo (optional, aber Pflicht für Präsentationsläufe)
-    hat_logo = config.standard_logo() is not None
+    logo = config.standard_logo()
     checks.append({"id": "logo", "name": "Haus-Logo (Präsentationen)",
-                   "status": "ok" if hat_logo else "warn",
-                   "detail": (f"hinterlegt, {len(config.standard_logo())} Bytes"
-                              if hat_logo else "keins hinterlegt"),
-                   "hint": "" if hat_logo else "nur für Präsentationen nötig",
+                   "status": "ok" if logo else "warn",
+                   "detail": (f"hinterlegt, {len(logo)} Bytes"
+                              if logo else "keins hinterlegt"),
+                   "hint": "" if logo else "nur für Präsentationen nötig",
                    "anleitung": ANLEITUNG["logo"]})
 
     checks.append({"id": "python", "name": "Python",
