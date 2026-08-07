@@ -107,6 +107,7 @@ async def api_projekt_neu(
     dauer: str = Form(...),
     stil: str = Form(...),
     ki_medien: str = Form("ja"),
+    folien_einbetten: str = Form("nein"),
     material_hinweise: str = Form(""),
     design_md: UploadFile | None = File(None),
     material: list[UploadFile] = File([]),
@@ -133,6 +134,9 @@ async def api_projekt_neu(
         # Schalter „Higgsfield nutzen Ja/Nein" — Preset kostenlos erzwingt Nein
         "ki_medien": False if stil == "kostenlos"
                      else ki_medien.lower() in ("ja", "true", "1", "on"),
+        # Folien der Stoffquelle als Bilder verwenden statt neue Medien zu
+        # erzeugen — spart Credits und hält Deck und Einheit deckungsgleich.
+        "folien_einbetten": folien_einbetten.lower() in ("ja", "true", "1", "on"),
         "material_hinweise": material_hinweise.strip(),
     }
     dateien = [(f.filename, await f.read()) for f in material if f.filename]

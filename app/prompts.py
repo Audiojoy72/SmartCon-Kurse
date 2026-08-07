@@ -6,7 +6,7 @@ import re
 import shlex
 from pathlib import Path
 
-from . import pruefung
+from . import folien, pruefung
 
 ROOT = Path(__file__).resolve().parent.parent
 SKILL_MD = ROOT / "skill" / "schulung" / "SKILL.md"
@@ -341,6 +341,12 @@ Preset. Medien- und Kostenregeln bleiben davon unberührt.
 """
     else:
         design_block = ""
+    try:
+        brief = json.loads(
+            (projekt_dir / "brief.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        brief = {}
+    folien_teil = folien_block(projekt_dir, brief)
     if not _projekt_ki_medien(projekt_dir):
         kostenlos_block = f"""
 ## KI-Medien: Nein (0 Credits — medienloser Zweig)
@@ -396,7 +402,7 @@ Arbeite danach TEIL 2 vollständig ab — von Phase 2.5 (Preflight) bis Phase 11
 (Auslieferung). Quelle ist ausschließlich die Datei curriculum.md in diesem
 Projektordner: was produziert wird, steht dort. Nicht improvisieren, keine
 Rückfragen (kein AskUserQuestion).
-{design_block}{kostenlos_block}
+{design_block}{kostenlos_block}{folien_teil}
 {reihenfolge}
 
 ## Abschluss
@@ -440,6 +446,47 @@ def stoffquelle(projekt_dir: Path) -> Path | None:
          if p.is_file() and p.name != pruefung.HTML_DATEINAME),
         key=lambda p: p.stat().st_mtime)
     return seiten[-1] if seiten else None
+
+
+def folien_block(projekt_dir: Path, brief: dict) -> str:
+    """Textbaustein für den Produktions-Prompt. Leer, wenn der Schalter aus ist."""
+    if not brief.get("folien_einbetten"):
+        return ""
+
+    quelle = stoffquelle(projekt_dir)
+    ziel = projekt_dir / "folien"
+    if quelle is None or quelle.suffix.lower() not in folien.QUELLFORMATE:
+        return """
+## Folien einbetten — nicht möglich
+
+Der Schalter „Folien einbetten" ist an, aber es liegen **keine Folien** vor
+(weder im Ordner `material/` noch als PDF). Erzeuge die Medien wie üblich und
+halte im Curriculum unter „Offene Positionen" fest, dass der Schalter ins
+Leere lief.
+"""
+    return f"""
+## Folien einbetten (Schalter ist an)
+
+Die Optik der Level kommt aus dem ausgelieferten Foliensatz, nicht aus neu
+erzeugten Medien. Grundlage: {quelle}
+
+1. Rendere die Folien einmalig als PNG-Sequenz:
+
+```bash
+cd /app && python3 -c "
+from pathlib import Path
+import app.folien as folien
+bilder = folien.exportiere(Path('{quelle}'), Path('{ziel}'))
+print(len(bilder), 'Folien gerendert')
+"
+```
+
+2. Binde die entstandenen `folie-NN.png` als Data-URI in die Lerneinheit ein —
+   je Level die Folien, die den Stoff dieses Levels tragen.
+3. **Für die Level keine Bilder erzeugen** und keine Filme anfordern: Der
+   Foliensatz ist die Optik. Voiceover und Animationen bleiben erlaubt.
+4. Halte im Curriculum fest, welche Folie zu welchem Level gehört.
+"""
 
 
 def pruefung_prompt(projekt_dir: Path, bestehensgrenze: int = 70) -> str:

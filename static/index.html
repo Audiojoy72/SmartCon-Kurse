@@ -6,7 +6,7 @@
 <title>SmartCon-Schulungen</title>
 <!-- ?v= bei jeder Frontend-Änderung hochzählen — sonst hängt auf dem Handy
      die alte Fassung im Cache und der Fix ist unsichtbar. -->
-<link rel="stylesheet" href="/static/style.css?v=8">
+<link rel="stylesheet" href="/static/style.css?v=9">
 </head>
 <body>
 <header>
@@ -87,6 +87,13 @@
           </label>
           <p class="muted" id="ki-medien-hinweis" hidden>Aus, weil das Preset
             „kostenlos" gewählt ist — bei den anderen Presets frei wählbar.</p>
+          <label class="checkbox" id="folien-wrap">
+            <input name="folien_einbetten" type="checkbox" value="ja">
+            Folien der hochgeladenen Präsentation einbetten
+          </label>
+          <p class="muted" id="folien-hinweis">Die Lerneinheit zeigt dann genau
+            die Folien statt neu erzeugter Bilder — kostet keine Credits und hält
+            Deck und Einheit deckungsgleich.</p>
         </fieldset>
         <label id="design-upload-wrap" class="design-upload">Eigenes Design (optional)
           <input name="design_md" type="file" accept=".md,text/markdown">
@@ -342,6 +349,6 @@
   für den tollen Skill
 </footer>
 
-<script src="/static/app.js?v=8"></script>
+<script src="/static/app.js?v=9"></script>
 </body>
 </html>
