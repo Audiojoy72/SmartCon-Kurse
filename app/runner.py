@@ -34,6 +34,7 @@ PHASE_NACH_ERFOLG = {
     "curriculum": projekte.PHASE_CURRICULUM_FERTIG,
     "freigabe": projekte.PHASE_FREIGEGEBEN,
     "produktion": projekte.PHASE_FERTIG,
+    "praesentation": projekte.PHASE_PRAESENTATION_FERTIG,
 }
 
 _laeufe: dict[str, dict] = {}          # slug -> {phase, gestartet}

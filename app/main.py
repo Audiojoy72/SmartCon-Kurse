@@ -13,7 +13,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, curriculum, higgsfield, preflight, projekte, prompts, runner
+from . import config, curriculum, higgsfield, praesentation, preflight, projekte, prompts, runner
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / "static"
@@ -445,6 +445,97 @@ def api_ergebnis_vorschau(slug: str, dateiname: str):
     """Dieselbe Datei als text/html — zum Ansehen im Browser (neuer Tab)."""
     f = _html_datei_oder_404(slug, dateiname)
     return FileResponse(f, media_type="text/html")
+
+
+# --- Deck-Werkstatt (Präsentationen) ---------------------------------------
+
+PRAESENTATION_QUELLEN_MAX = 20000
+_DATEINAME_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+@app.post("/api/praesentationen", status_code=201)
+async def api_praesentation_neu(
+    thema: str = Form(...),
+    zielgruppe: str = Form(""),
+    lernziele: str = Form(""),
+    vorwissen: str = Form(""),
+    sprache: str = Form("Deutsch"),
+    dauer: str = Form(""),
+    quellen: str = Form(""),
+    material: list[UploadFile] = File([]),
+):
+    """Legt ein Präsentationsprojekt an und startet den Lauf.
+
+    `quellen` ist Freitext, eine Fundstelle je Zeile. Dateien kommen über
+    `material` und gehen der Websuche vor.
+    """
+    if not thema.strip():
+        raise HTTPException(400, "Thema ist ein Pflichtfeld")
+    if len(quellen) > PRAESENTATION_QUELLEN_MAX:
+        raise HTTPException(400, "Die Quellenliste ist zu lang")
+    if config.standard_logo() is None:
+        # Lieber hier abweisen als einen Lauf starten, der am Logo scheitert.
+        raise HTTPException(
+            400, "Kein Haus-Logo hinterlegt — in den Einstellungen hochladen. "
+                 "Der Präsentations-Skill bricht ohne Logo ab.")
+
+    dateien = [(f.filename, await f.read()) for f in material if f.filename]
+    briefing = {
+        "art": projekte.ART_PRAESENTATION,
+        "thema": thema.strip(),
+        "zielgruppe": zielgruppe.strip(),
+        "lernziele": lernziele.strip(),
+        "vorwissen": vorwissen.strip(),
+        "sprache": sprache.strip() or "Deutsch",
+        "dauer": dauer.strip(),
+        "quellen": quellen.strip(),
+    }
+    slug = projekte.create(briefing, material=dateien)
+    d = projekte.projekt_dir(slug)
+
+    projekte.set_phase(slug, projekte.PHASE_PRAESENTATION_LAEUFT)
+    try:
+        runner.start(slug, "praesentation",
+                     praesentation.prompt(d, briefing, config.LOGO_PFAD))
+    except runner.LaufAktiv:
+        projekte.set_phase(slug, projekte.PHASE_FEHLER)
+        raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
+    return {"ok": True, "slug": slug,
+            "phase": projekte.PHASE_PRAESENTATION_LAEUFT}
+
+
+@app.get("/api/praesentationen/{slug}")
+def api_praesentation_stand(slug: str):
+    p = _projekt_oder_404(slug)
+    d = projekte.projekt_dir(slug)
+    dateien = [{"name": f.name, "groesse": f.stat().st_size}
+               for f in praesentation.dateien(d)]
+    return {"slug": slug,
+            "phase": p["status"].get("phase"),
+            "laeuft": runner.laeuft(slug),
+            "thema": p["briefing"].get("thema"),
+            "dateien": dateien,
+            "fertig": bool(dateien) and not runner.laeuft(slug)}
+
+
+@app.get("/api/praesentationen/{slug}/datei/{dateiname}")
+def api_praesentation_download(slug: str, dateiname: str):
+    """Download der erzeugten PowerPoint-Datei.
+
+    Eigene Route statt einer Erweiterung von /ergebnis: Dort ist die
+    Beschränkung auf .html Teil der Prüfung, und eine Route, die je nach
+    Endung anderes zulässt, lädt zum nächsten Schlupfloch ein.
+    """
+    _projekt_oder_404(slug)
+    d = projekte.projekt_dir(slug)
+    if not _DATEINAME_RE.match(dateiname) or not dateiname.endswith(".pptx"):
+        raise HTTPException(400, "Ungültiger Dateiname")
+    f = d / dateiname
+    if not f.is_file() or f.resolve().parent != d.resolve():
+        raise HTTPException(404, f"Datei „{dateiname}“ nicht gefunden")
+    return FileResponse(
+        f, filename=f.name,
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation")
 
 
 @app.get("/")
