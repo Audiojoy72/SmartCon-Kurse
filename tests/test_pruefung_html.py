@@ -85,3 +85,37 @@ def test_hinweis_kann_das_script_nicht_vorzeitig_beenden():
     # eine solche Sequenz darf im gesamten Dokument stehen (die echte,
     # schließende). Der injizierte Text darf keine zweite erzeugen.
     assert html.count("</script>") == 1
+
+
+def test_design_ueberschreibt_gueltige_hex_farbe():
+    html = pruefung.als_html(DATEN, design={"akzent": "#ff0000"})
+    assert "--akzent: #ff0000;" in html
+
+
+def test_design_mit_css_injection_wird_verworfen():
+    # design ist Agenten-Freitext (z. B. aus einer design.md) und landet
+    # ungeprüft in einem <style>-Block — nur gültige Hex-Farben übernehmen.
+    boese = "red; } body { background: url(javascript:alert(1)"
+    html = pruefung.als_html(DATEN, design={"akzent": boese})
+    assert boese not in html
+    assert f"--akzent: {pruefung.FARBEN['akzent']};" in html
+
+
+def test_hinweis_kann_tokenizer_nicht_ueber_kommentar_umleiten():
+    # Ein reines "</" → "<\/" reicht nicht: "<!--<script" schickt den
+    # HTML-Tokenizer schon vor dem "/" in den script-data-double-escaped-
+    # Zustand — das echte "</script>" der Vorlage terminiert das Element
+    # dann nicht mehr, und alles danach (inkl. der übrigen Lösungen) wird
+    # als Skriptinhalt statt als Markup interpretiert.
+    daten = {
+        "titel": "Sicherheit",
+        "bestehensgrenze": 70,
+        "fragen": [
+            {"frage": "Was ist XSS?", "optionen": ["Angriff", "Feature", "Bug"],
+             "richtig": 0, "thema": "Level 1",
+             "hinweis": "Testet z.B. <!--<script"},
+        ],
+    }
+    html = pruefung.als_html(daten)
+    assert "<!--<script" not in html
+    assert html.count("</script>") == 1

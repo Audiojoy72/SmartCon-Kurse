@@ -7,6 +7,7 @@ Frage unlösbar, und das fällt sonst erst dem Teilnehmer auf.
 
 import html as _html
 import json
+import re
 from pathlib import Path
 
 MIN_OPTIONEN = 3
@@ -95,14 +96,24 @@ FARBEN = {
 }
 
 
+_FARBE_RE = re.compile(r"^#[0-9a-fA-F]{3,8}$")
+
+
 def als_html(daten: dict, design: dict | None = None) -> str:
     """Eine offline lauffähige Prüfungsseite. Kein Server, keine Fremdquellen.
 
     Die Lösungen stehen im Skript, nicht im Fragebogen — sonst genügt ein
     Blick in den Quelltext des sichtbaren Teils.
+
+    design überschreibt einzelne FARBEN-Werte (z. B. aus einer Agenten-
+    erzeugten design.md) — die Werte landen ungeprüft in einem <style>-Block,
+    deshalb nur gültige Hex-Farben übernehmen. Alles andere fällt still auf
+    den Default zurück, statt CSS-Injection zu erlauben.
     """
     pruefe(daten)
-    farben = {**FARBEN, **(design or {})}
+    design = {k: v for k, v in (design or {}).items()
+              if isinstance(v, str) and _FARBE_RE.match(v)}
+    farben = {**FARBEN, **design}
 
     fragen_html = []
     for nr, frage in enumerate(daten["fragen"], start=1):
@@ -124,13 +135,16 @@ def als_html(daten: dict, design: dict | None = None) -> str:
     # Nur das, was die Auswertung braucht.
     # "hinweis" ist Agenten-Freitext und ungeprüft (siehe _pruefe_frage) — ein
     # "</script>" darin würde den Script-Block vorzeitig beenden, bevor JS ihn
-    # als String liest, und alle Lösungen im Klartext offenlegen. json.dumps
-    # escaped "/" nicht, deshalb hier explizit: "<\/script>" bleibt in einem
-    # JS-String ein normales Zeichen, der HTML-Tokenizer sieht kein Tag-Ende.
+    # als String liest, und alle Lösungen im Klartext offenlegen. Ein reines
+    # "</" → "<\/" reicht nicht: "<!--<script" schickt den HTML-Tokenizer
+    # schon vor dem "/" in den script-data-double-escaped-Zustand, und das
+    # echte "</script>" der Vorlage terminiert das Element dann nicht mehr.
+    # Deshalb jedes "<" escapen, nicht nur "</" — das deckt beide Fälle ab
+    # und bleibt in einem JS-String ein normales Zeichen.
     loesungen = json.dumps(
         [{"richtig": f["richtig"], "hinweis": str(f.get("hinweis", ""))}
          for f in daten["fragen"]], ensure_ascii=False
-    ).replace("</", "<\\/")
+    ).replace("<", "\\u003c")
 
     return f"""<!doctype html>
 <html lang="de">
