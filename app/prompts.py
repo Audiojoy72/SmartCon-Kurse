@@ -402,3 +402,34 @@ Rückfragen (kein AskUserQuestion).
 Beende den Lauf mit einer kurzen Zusammenfassung als letztem Text: Name der
 fertigen HTML-Datei, Anzahl produzierter Medien (Bilder/Videos/Voiceovers)
 und die von dir mitgezählten Credits."""
+
+
+# Formate, die einen Foliensatz tragen können.
+_FOLIEN_ENDUNGEN = (".pptx", ".pdf", ".key", ".odp")
+
+
+def stoffquelle(projekt_dir: Path) -> Path | None:
+    """Die Datei, die den tatsächlich behandelten Stoff trägt.
+
+    Das ist NICHT das curriculum.md: Das ist der Plan, und zwischen Plan und
+    Auslieferung liegt die Produktion, die kürzt und gewichtet. Geprüft werden
+    darf nur, was die Teilnehmer auch bekommen haben.
+
+    Vorrang hat eine hochgeladene Präsentation im material/-Ordner — bei einer
+    Live-Schulung ist der Foliensatz der behandelte Stoff, nicht die Nacharbeit.
+    Fehlt sie, gilt die erzeugte Lerneinheit. Ohne beides: None; der Aufrufer
+    fällt dann sichtbar auf das Curriculum zurück.
+    """
+    material = projekt_dir / "material"
+    if material.is_dir():
+        folien = sorted(
+            (p for p in material.iterdir()
+             if p.suffix.lower() in _FOLIEN_ENDUNGEN),
+            key=lambda p: p.stat().st_mtime)
+        if folien:
+            return folien[-1]
+
+    # Jüngste statt alphabetisch erste: Im Projektordner liegen während des
+    # Laufs regelmäßig Zwischendateien.
+    seiten = sorted(projekt_dir.glob("*.html"), key=lambda p: p.stat().st_mtime)
+    return seiten[-1] if seiten else None
