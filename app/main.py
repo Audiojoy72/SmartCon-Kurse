@@ -341,6 +341,24 @@ def api_pruefung_lesen(slug: str):
         raise HTTPException(400, str(e))
 
 
+@app.get("/api/projekte/{slug}/pruefung.html")
+def api_pruefung_html(slug: str):
+    """Die Prüfung als offline lauffähige HTML-Datei."""
+    _projekt_oder_404(slug)
+    d = projekte.projekt_dir(slug)
+    pfad = d / "pruefung.json"
+    if not pfad.is_file():
+        raise HTTPException(404, "Noch keine Prüfung erzeugt")
+    try:
+        daten = pruefung.laden(pfad)
+    except pruefung.PruefungFehler as e:
+        raise HTTPException(400, str(e))
+
+    ziel = d / "pruefung.html"
+    ziel.write_text(pruefung.als_html(daten), encoding="utf-8")
+    return FileResponse(ziel, filename=ziel.name, media_type="text/html")
+
+
 @app.post("/api/projekte/{slug}/go")
 async def api_go(slug: str, body: dict | None = None):
     """Freigabe-Gate: optionale Medien-Änderungen einarbeiten, dann freigeben.

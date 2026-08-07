@@ -1,0 +1,18 @@
+{
+  "titel": "Abschlussprüfung KI-Verordnung",
+  "bestehensgrenze": 70,
+  "fragen": [
+    {"frage": "Seit wann wird Art. 4 KI-VO praktisch durchgesetzt?",
+     "optionen": ["seit 02.08.2026", "seit 02.02.2025", "noch gar nicht"],
+     "richtig": 0,
+     "thema": "Level 1",
+     "hinweis": "Anwendbar seit 02.02.2025, durchgesetzt wird seit dem 02.08.2026."},
+    {"frage": "Was leistet ein AVV nach Art. 28 DSGVO nicht?",
+     "optionen": ["Er erlaubt die Verarbeitung",
+                  "Er bindet den Anbieter an Weisungen",
+                  "Er regelt Vertraulichkeit"],
+     "richtig": 0,
+     "thema": "Level 4",
+     "hinweis": "Ein AVV macht keine Verarbeitung erlaubt, er macht sie vertragsfest."}
+  ]
+}
