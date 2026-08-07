@@ -20,6 +20,13 @@ services:
       # Plugin-Skills werden von claude -p im Container nicht geladen (siehe
       # docs/superpowers/notizen/2026-08-07-skill-verfuegbarkeit.md) — deshalb
       # den Präsentations-Skill zusätzlich dort mounten, wo lokale Skills liegen.
+      # ACHTUNG Versionsfalle: die "1.1.0" ist hier fest verdrahtet, es gibt
+      # keinen "latest"-Symlink im Plugin-Cache. Bei einem Plugin-Update auf
+      # eine neue Version existiert dieser Pfad nicht mehr, Docker legt dann
+      # stillschweigend einen leeren Ordner an (Container startet trotzdem) —
+      # nach jedem Plugin-Update das Versionssegment hier von Hand nachziehen.
+      # Der Preflight-Check "praesentation_skill" (app/preflight.py) schlägt
+      # in diesem Fall mit "warn" an.
       - $HOME/.claude/plugins/cache/smartcon-skills/praesentation/1.1.0/skills/smartcon-praesentation:/root/.claude/skills/smartcon-praesentation:ro
       - $HOME/.kimi-code:/root/.kimi-code
       - $HOME/.config/higgsfield:/root/.config/higgsfield

@@ -77,9 +77,28 @@ ablegt. In `docker-compose.yml`:
 ```
 
 Begründung für A statt B (`COPY` ins Image): der Skill bleibt so am
-Plugin-Ursprungsort einzig gepflegt und aktualisiert sich beim nächsten
-Container-Neustart automatisch mit — kein Doppel-Pflegeaufwand, kein Rebuild
+Plugin-Ursprungsort einzig gepflegt, kein Doppel-Pflegeaufwand, kein Rebuild
 nötig, wenn sich nur der Skill-Inhalt ändert.
+
+**Korrektur (2026-08-07, Review-Fix):** Der Satz oben ist nur zutreffend,
+solange sich der *Inhalt* der Version 1.1.0 ändert. Er ist **falsch** für
+Versions-*Sprünge*: die Mount-Quelle nennt die Plugin-Version fest
+(`.../praesentation/1.1.0/skills/...`), es gibt keinen `latest`-Symlink im
+Plugin-Cache. Aktualisiert sich das Plugin auf z. B. 1.2.0, existiert der
+alte Pfad nicht mehr — Docker Compose legt dann beim nächsten
+`docker compose up` **stillschweigend einen leeren Ordner** an der
+Mount-Stelle an, der Container startet normal, aber der Skill ist für den
+Agenten weg. Das fällt nicht beim Start auf, sondern erst mitten in einem
+Präsentations-Lauf, wenn der Agent den Skill nicht findet.
+
+Mitigation: ein neuer Preflight-Check `praesentation_skill` in
+`app/preflight.py` prüft, ob `/root/.claude/skills/smartcon-praesentation`
+existiert und nicht leer ist, und meldet sonst `status: "warn"` (nicht
+`"fail"`, analog zum `higgsfield`-Check — der Skill wird nur für
+Präsentations-Läufe gebraucht). Bei einem Plugin-Update muss das
+Versionssegment in `docker-compose.yml` von Hand nachgezogen werden; die
+Anleitung dazu steht in `ANLEITUNG["praesentation_skill"]` und wird im
+System-Check per Klick auf die rote/gelbe Kachel angezeigt.
 
 ## Test 2: nach der Änderung (Verifikation)
 
