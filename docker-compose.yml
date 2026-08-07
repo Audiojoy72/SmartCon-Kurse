@@ -17,6 +17,10 @@ services:
       - ./projects:/app/projects
       # Anmeldungen (read-write, die CLIs pflegen dort Tokens/Sessions)
       - $HOME/.claude:/root/.claude
+      # Plugin-Skills werden von claude -p im Container nicht geladen (siehe
+      # docs/superpowers/notizen/2026-08-07-skill-verfuegbarkeit.md) — deshalb
+      # den Präsentations-Skill zusätzlich dort mounten, wo lokale Skills liegen.
+      - $HOME/.claude/plugins/cache/smartcon-skills/praesentation/1.1.0/skills/smartcon-praesentation:/root/.claude/skills/smartcon-praesentation:ro
       - $HOME/.kimi-code:/root/.kimi-code
       - $HOME/.config/higgsfield:/root/.config/higgsfield
       # SSH-Schlüssel + Cloudflare-Token für den Transkriptions-Tunnel (nur lesen)

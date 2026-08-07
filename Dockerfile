@@ -13,9 +13,12 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PATH="/root/.local/bin:/root/.kimi-code/bin:${PATH}"
 
 # Systempakete: ffmpeg (Muxing), curl/ca-certificates (Installer),
-# openssh-client (Tunnel zum Transkriptionsdienst), git (Agent-Workflows)
+# openssh-client (Tunnel zum Transkriptionsdienst), git (Agent-Workflows),
+# libreoffice-impress + poppler-utils (PPTX → PDF → PNG für Deck-QA und
+# den Produktionspfad „Folien einbetten")
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg curl ca-certificates openssh-client git gnupg \
+        libreoffice-impress poppler-utils fonts-inter \
     && rm -rf /var/lib/apt/lists/*
 
 # cloudflared (Cloudflare Access / SSH-Tunnel)
