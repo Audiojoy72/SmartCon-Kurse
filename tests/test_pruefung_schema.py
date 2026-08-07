@@ -81,6 +81,23 @@ def test_leere_frage_ungueltig():
         pruefung.pruefe({**GUELTIG, "fragen": [frage]})
 
 
+def test_nicht_string_titel_ungueltig():
+    with pytest.raises(pruefung.PruefungFehler):
+        pruefung.pruefe({**GUELTIG, "titel": 12345})
+
+
+def test_nicht_string_frage_ungueltig():
+    frage = {**GUELTIG["fragen"][0], "frage": {"nested": "obj"}}
+    with pytest.raises(pruefung.PruefungFehler):
+        pruefung.pruefe({**GUELTIG, "fragen": [frage]})
+
+
+def test_nicht_string_option_ungueltig():
+    frage = {**GUELTIG["fragen"][0], "optionen": ["a", "b", 3]}
+    with pytest.raises(pruefung.PruefungFehler):
+        pruefung.pruefe({**GUELTIG, "fragen": [frage]})
+
+
 @pytest.mark.parametrize("grenze", [0, 101, "siebzig", None, True])
 def test_unsinnige_bestehensgrenze_ungueltig(grenze):
     with pytest.raises(pruefung.PruefungFehler):

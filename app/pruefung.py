@@ -37,7 +37,8 @@ def pruefe(daten: dict) -> None:
     """Wirft PruefungFehler, wenn die Struktur unbrauchbar ist."""
     if not isinstance(daten, dict):
         raise PruefungFehler("Die Datei muss ein JSON-Objekt enthalten")
-    if not str(daten.get("titel", "")).strip():
+    titel = daten.get("titel")
+    if not isinstance(titel, str) or not titel.strip():
         raise PruefungFehler("„titel“ fehlt oder ist leer")
 
     grenze = daten.get("bestehensgrenze")
@@ -57,14 +58,15 @@ def pruefe(daten: dict) -> None:
 def _pruefe_frage(nr: int, frage) -> None:
     if not isinstance(frage, dict):
         raise PruefungFehler(f"Frage {nr}: kein Objekt")
-    if not str(frage.get("frage", "")).strip():
+    frage_text = frage.get("frage")
+    if not isinstance(frage_text, str) or not frage_text.strip():
         raise PruefungFehler(f"Frage {nr}: Fragetext fehlt")
 
     optionen = frage.get("optionen")
     if not isinstance(optionen, list) or not MIN_OPTIONEN <= len(optionen) <= MAX_OPTIONEN:
         raise PruefungFehler(
             f"Frage {nr}: „optionen“ braucht {MIN_OPTIONEN} bis {MAX_OPTIONEN} Einträge")
-    if any(not str(o).strip() for o in optionen):
+    if any(not isinstance(o, str) or not o.strip() for o in optionen):
         raise PruefungFehler(f"Frage {nr}: leere Antwortoption")
 
     richtig = frage.get("richtig")
