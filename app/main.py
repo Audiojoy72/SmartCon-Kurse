@@ -13,7 +13,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, curriculum, higgsfield, praesentation, preflight, projekte, prompts, runner
+from . import config, curriculum, higgsfield, praesentation, preflight, projekte, prompts, pruefung, runner
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / "static"
@@ -300,6 +300,45 @@ def api_kostenplan_starten(slug: str):
         projekte.set_phase(slug, vorher)
         raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
     return {"ok": True, "phase": projekte.PHASE_KOSTENPLAN_LAEUFT}
+
+
+@app.post("/api/projekte/{slug}/pruefung")
+def api_pruefung_starten(slug: str, body: dict | None = None):
+    """Startet die Prüfungs-Phase → pruefung.json aus der Stoffquelle."""
+    p = _projekt_oder_404(slug)
+    d = projekte.projekt_dir(slug)
+    if not (d / "curriculum.md").is_file():
+        raise HTTPException(404, "Noch kein curriculum.md vorhanden")
+    if runner.laeuft(slug):
+        raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
+
+    grenze = (body or {}).get("bestehensgrenze", 70)
+    if not isinstance(grenze, int) or isinstance(grenze, bool) \
+            or not 1 <= grenze <= 100:
+        raise HTTPException(400, "bestehensgrenze muss zwischen 1 und 100 liegen")
+
+    vorher = p["status"].get("phase", projekte.PHASE_FERTIG)
+    projekte.set_phase(slug, projekte.PHASE_PRUEFUNG_LAEUFT)
+    try:
+        runner.start(slug, "pruefung", prompts.pruefung_prompt(d, grenze),
+                     zurueck_phase=vorher)
+    except runner.LaufAktiv:
+        projekte.set_phase(slug, vorher)
+        raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
+    return {"ok": True, "phase": projekte.PHASE_PRUEFUNG_LAEUFT}
+
+
+@app.get("/api/projekte/{slug}/pruefung")
+def api_pruefung_lesen(slug: str):
+    """Die geprüfte pruefung.json. 400 nennt den Grund im Klartext."""
+    _projekt_oder_404(slug)
+    pfad = projekte.projekt_dir(slug) / "pruefung.json"
+    if not pfad.is_file():
+        raise HTTPException(404, "Noch keine Prüfung erzeugt")
+    try:
+        return pruefung.laden(pfad)
+    except pruefung.PruefungFehler as e:
+        raise HTTPException(400, str(e))
 
 
 @app.post("/api/projekte/{slug}/go")

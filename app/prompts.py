@@ -435,3 +435,78 @@ def stoffquelle(projekt_dir: Path) -> Path | None:
         (p for p in projekt_dir.glob("*.html") if p.is_file()),
         key=lambda p: p.stat().st_mtime)
     return seiten[-1] if seiten else None
+
+
+def pruefung_prompt(projekt_dir: Path, bestehensgrenze: int = 70) -> str:
+    """Arbeitsauftrag: pruefung.json aus dem ausgelieferten Stoff.
+
+    Schema als Literal, absoluter Zielpfad, „nur JSON“ — dieselbe Bauart wie
+    kostenplan_prompt. Eine erzwungene Datei ist nötig, weil der Abschluss-Check
+    im curriculum.md in wechselnden Notationen steht.
+    """
+    quelle = stoffquelle(projekt_dir)
+    schema = f"""
+{{
+  "titel": "Abschlussprüfung <Thema>",
+  "bestehensgrenze": {bestehensgrenze},
+  "fragen": [
+    {{"frage": "vollständig ausformulierte Frage auf Deutsch",
+     "optionen": ["Antwort A", "Antwort B", "Antwort C", "Antwort D"],
+     "richtig": 0,
+     "thema": "Level 3",
+     "hinweis": "Ein Satz, warum das die richtige Antwort ist."}}
+  ]
+}}
+"""
+    if quelle is not None:
+        grundlage = f"""Lies zuerst {quelle} vollständig. **Das ist der Stoff,
+der behandelt wurde, und die alleinige Grundlage der Prüfung.**
+
+Lies danach {projekt_dir / 'curriculum.md'} — aber nur, um die Gliederung zu kennen
+und jede Frage einem Level zuzuordnen. Inhalte, die dort stehen und in
+{quelle.name} fehlen, sind NICHT Stoff und dürfen nicht gefragt werden."""
+        stoff_regeln = f"""- **Jede Frage muss sich aus {quelle.name} allein beantworten lassen.**
+  Prüfe das für jede einzelne Frage, bevor du sie aufnimmst: Steht die
+  richtige Antwort dort? Wenn nein, verwirf die Frage. Kein Vorwissen, keine
+  Ergänzung aus eigener Kenntnis, nichts aus der Recherche — auch dann nicht,
+  wenn es fachlich richtig wäre.
+- Was mündlich ergänzt wurde, steht dir nicht zur Verfügung und ist kein Stoff.
+- Lieber weniger Fragen als eine, die im Material nicht gedeckt ist.
+- 10 bis 15 Fragen, verteilt über die Level, die in {quelle.name} tatsächlich
+  vorkommen — ein dort nicht behandeltes Level bleibt ohne Frage."""
+    else:
+        grundlage = f"""Lies {projekt_dir / 'curriculum.md'} vollständig — alle
+Level mit ihren Lernzielen und Merksätzen.
+
+ACHTUNG: Es liegt weder eine hochgeladene Präsentation noch eine erzeugte
+Lerneinheit vor. Du arbeitest deshalb auf dem Lernplan statt auf dem
+ausgelieferten Material. Halte dich streng an das, was im Plan steht."""
+        stoff_regeln = """- 10 bis 15 Fragen, über alle Level verteilt. Kein Level ohne Frage.
+- Frage nur ab, was im Curriculum ausformuliert ist — nichts aus eigener
+  Kenntnis ergänzen."""
+
+    return f"""Du bist der Prüfungs-Agent der App „SmartCon-Schulungen". Dein
+Arbeitsverzeichnis ist der Projektordner: {projekt_dir}
+
+{grundlage}
+
+Erstelle daraus die Abschlussprüfung und schreibe sie als maschinenlesbare
+JSON-Datei {projekt_dir / 'pruefung.json'} — exakt in diesem Schema:
+{schema}
+Regeln:
+{stoff_regeln}
+- „optionen“ hat drei bis fünf Einträge. „richtig“ ist der nullbasierte Zeiger
+  auf die richtige Option — genau eine Antwort ist richtig, Mehrfachauswahl
+  gibt es nicht.
+- Die Ablenker müssen plausibel sein: falsche Antworten, die jemand ohne die
+  Schulung für richtig halten könnte. Keine absurden Optionen und keine, die
+  sich schon durch ihre Länge verraten.
+- „thema“ nennt das Level, auf das sich die Frage bezieht („Level 3“).
+- „hinweis“ ist ein Satz Begründung, der nach der Auswertung gezeigt wird.
+- „bestehensgrenze“ ist {bestehensgrenze}.
+- Frage nach Verständnis, nicht nach Wortlaut.
+- Alles auf Deutsch, mit korrekten Umlauten.
+- Die Datei enthält NUR das JSON: kein Kommentar, kein Markdown, keine Code-Zäune.
+
+Stelle keine Rückfragen. Beende den Lauf mit einer Zeile: Anzahl der Fragen
+und die abgedeckten Level."""

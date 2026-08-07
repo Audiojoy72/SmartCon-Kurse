@@ -41,6 +41,8 @@ PHASE_FEHLER = "fehler"
 PHASE_PRAESENTATION_LAEUFT = "praesentation_laeuft"
 PHASE_PRAESENTATION_FERTIG = "praesentation_fertig"
 
+PHASE_PRUEFUNG_LAEUFT = "pruefung_laeuft"
+
 # Projektarten. Bestandsprojekte haben kein art-Feld und sind Schulungen.
 ART_SCHULUNG = "schulung"
 ART_PRAESENTATION = "praesentation"
