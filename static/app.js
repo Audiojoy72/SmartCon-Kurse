@@ -3,10 +3,17 @@
 // Tabs
 document.querySelectorAll(".tab").forEach((btn) => {
   btn.addEventListener("click", () => {
+    const vorherAktiv = document.querySelector(".tab.aktiv")?.dataset.tab;
     document.querySelectorAll(".tab").forEach((b) => b.classList.remove("aktiv"));
     document.querySelectorAll(".view").forEach((v) => v.classList.remove("aktiv"));
     btn.classList.add("aktiv");
     document.getElementById("view-" + btn.dataset.tab).classList.add("aktiv");
+    // Weg von „decks": offener SSE-Stream und Poll-Timer der Deck-Detailansicht
+    // sonst laufen im Hintergrund weiter, auch wenn kein Deck mehr sichtbar ist.
+    if (vorherAktiv === "decks" && btn.dataset.tab !== "decks") {
+      if (deckQuelle) { deckQuelle.close(); deckQuelle = null; }
+      if (deckTimer) { clearInterval(deckTimer); deckTimer = null; }
+    }
     if (btn.dataset.tab === "decks") {
       deckPanel("dv-liste");
       ladeDecks();
@@ -178,12 +185,15 @@ async function ladeProjekte() {
     if (data.projekte.some((p) => (p.phase || "").endsWith("_laeuft"))) {
       listeTimer = setTimeout(ladeProjekte, 15000);
     }
-    if (!data.projekte.length) {
+    // Decks haben ihre eigene Liste (ladeDecks()) — sonst öffnet ein Klick
+    // hier den Schulungs-Workflow für einen Präsentationsordner.
+    const projekte = data.projekte.filter((p) => p.art !== "praesentation");
+    if (!projekte.length) {
       box.innerHTML = "<p class='muted'>Noch keine Projekte — „Neue Schulung“ legt das erste an.</p>";
       return;
     }
     box.innerHTML = "";
-    for (const p of data.projekte) {
+    for (const p of projekte) {
       const karte = document.createElement("div");
       karte.className = "projekt-karte";
       const datum = p.geaendert_am ? p.geaendert_am.slice(0, 16).replace("T", " ") : "";
@@ -898,7 +908,13 @@ function deckSseVerbinden(slug) {
     zeile.textContent = ereignis.text || `${ereignis.typ}: ${ereignis.tool || ""}`;
     log.appendChild(zeile);
     log.scrollTop = log.scrollHeight;
-    if (ereignis.typ === "fertig") aktualisiereDeck();
+    if (ereignis.typ === "fertig" || ereignis.typ === "fehler") {
+      // api_events schließt den Stream nach dem Replay, wenn kein Lauf mehr
+      // aktiv ist — ohne dieses close() reconnectet EventSource alle paar
+      // Sekunden von selbst und spielt events.jsonl endlos neu ein.
+      if (ereignis.typ === "fertig") aktualisiereDeck();
+      deckQuelle.close();
+    }
   };
 }
 
