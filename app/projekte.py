@@ -76,6 +76,15 @@ def projekt_dir(slug: str) -> Path | None:
     return d if d.is_dir() else None
 
 
+# Zeichen, die in einem hochgeladenen Dateinamen erlaubt bleiben: Buchstaben
+# (inkl. Umlaute — \w ist in Python 3 unicode-aware), Ziffern, Whitespace und
+# eine kleine, ungefährliche Interpunktion. Alles andere raus — der Name
+# landet unverändert in Prosa-Prompts (praesentation.py, prompts.py) und im
+# einen verbliebenen Shell-Kommando; Backticks, "$(", Anführungszeichen &Co.
+# dort zuzulassen wäre ein Einfallstor für jede künftige Interpolationsstelle.
+_DATEINAME_ERLAUBT_RE = re.compile(r"[^\w\s.\-(),+]", re.UNICODE)
+
+
 def _dateiname(name: str) -> str:
     """Basisname einer hochgeladenen Datei, URL-Kodierung zurückgedreht.
 
@@ -90,7 +99,7 @@ def _dateiname(name: str) -> str:
     name = Path(name).name
     if "%" in name:
         name = Path(unquote(name)).name
-    return name
+    return _DATEINAME_ERLAUBT_RE.sub("", name)
 
 
 def _freier_slug(base: str) -> str:

