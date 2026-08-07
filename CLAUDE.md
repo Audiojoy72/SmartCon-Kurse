@@ -45,10 +45,11 @@ und End-to-End-Testprojekte für alles, was einen echten Agentenlauf braucht.
 
 ```
 app/            FastAPI-Backend (main, runner, projekte, prompts, preflight,
-                curriculum, higgsfield, config)
+                curriculum, higgsfield, config, praesentation, pruefung, folien)
 static/         Frontend (index.html, app.js, style.css)
 skill/schulung/ der neutrale Schulungs-Skill (SKILL.md, reference/styles/,
                 reference/design-vorlage.md, scripts/, assets/)
+tests/          pytest-Suite für app/ (kein Test-Framework fürs Frontend)
 projects/       Projektordner je Schulung (gitignored, Nutzdaten)
 config.json     Einstellungen + Zugangsdaten (gitignored)
 docs/           Screenshots für die README

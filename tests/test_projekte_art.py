@@ -1,5 +1,7 @@
 """Projektart: Schulung oder Präsentation."""
 
+from pathlib import Path
+
 from app import projekte
 
 SCHULUNG = {"thema": "CRA", "lernziele": "x", "zielgruppe": "KMU",
@@ -31,6 +33,12 @@ def test_liste_nennt_die_art(projekte_tmp):
     assert set(arten.values()) == {projekte.ART_SCHULUNG, projekte.ART_PRAESENTATION}
 
 
-def test_praesentationsphasen_existieren():
-    assert projekte.PHASE_PRAESENTATION_LAEUFT == "praesentation_laeuft"
-    assert projekte.PHASE_PRAESENTATION_FERTIG == "praesentation_fertig"
+def test_praesentationsphasen_stimmen_mit_dem_frontend_ueberein():
+    # Das Frontend kennt die Phasen nicht über den Wert, sondern nur als
+    # Schlüssel in DECK_PHASEN_LABEL (static/app.js) — driften Backend-
+    # Konstante und Frontend-Schlüssel auseinander, zeigt die Deck-Karte
+    # den rohen Phasenstring statt eines Labels.
+    app_js = (Path(__file__).resolve().parent.parent / "static" / "app.js").read_text()
+    block = app_js.split("DECK_PHASEN_LABEL")[1].split("};")[0]
+    assert f"{projekte.PHASE_PRAESENTATION_LAEUFT}:" in block
+    assert f"{projekte.PHASE_PRAESENTATION_FERTIG}:" in block

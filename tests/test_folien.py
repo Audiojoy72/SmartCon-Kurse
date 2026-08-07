@@ -11,10 +11,19 @@ hat_werkzeuge = pytest.mark.skipif(
     reason="LibreOffice/pdftoppm nicht installiert (läuft im Container)")
 
 
-def test_werkzeuge_vorhanden_prueft_beide():
-    erwartet = bool(shutil.which("soffice") or shutil.which("libreoffice")) \
-        and bool(shutil.which("pdftoppm"))
-    assert folien.werkzeuge_vorhanden() is erwartet
+def test_werkzeuge_vorhanden_prueft_beide(monkeypatch):
+    # werkzeuge_vorhanden() muss beide Werkzeuge verlangen — eins allein
+    # (egal welches) darf nicht als "vorhanden" durchgehen.
+    def which(name):
+        return f"/usr/bin/{name}" if name == vorhanden else None
+
+    for vorhanden in ("soffice", "pdftoppm", None):
+        monkeypatch.setattr(shutil, "which", which)
+        assert folien.werkzeuge_vorhanden() is False
+
+    monkeypatch.setattr(shutil, "which",
+                        lambda name: f"/usr/bin/{name}")
+    assert folien.werkzeuge_vorhanden() is True
 
 
 def test_fehlende_quelle_wirft(tmp_path):

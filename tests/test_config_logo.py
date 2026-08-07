@@ -13,6 +13,16 @@ def logo_tmp(tmp_path, monkeypatch):
     return config.LOGO_PFAD
 
 
+@pytest.fixture
+def kein_host_toolchain(monkeypatch):
+    """run_all() prüft nebenbei claude/kimi/ffmpeg/higgsfield/node auf dem
+    Host — für einen Logo-Check unnötig und macht den Test vom lokalen
+    Toolchain-Stand abhängig (Subprozesse bis zu preflight.TIMEOUT=20s je
+    Aufruf). shutil.which auf None zu setzen lässt _check_binary() vor jedem
+    Subprozess-Aufruf abbrechen."""
+    monkeypatch.setattr(preflight.shutil, "which", lambda name: None)
+
+
 def test_ohne_datei_kein_logo(logo_tmp):
     assert config.standard_logo() is None
 
@@ -34,12 +44,12 @@ def test_kein_png_wird_abgewiesen(logo_tmp):
         config.logo_speichern(b"das ist kein PNG")
 
 
-def test_preflight_meldet_fehlendes_logo(logo_tmp):
+def test_preflight_meldet_fehlendes_logo(logo_tmp, kein_host_toolchain):
     check = _finde(preflight.run_all(config.DEFAULTS), "logo")
     assert check["status"] == "warn"
 
 
-def test_preflight_ok_mit_logo(logo_tmp):
+def test_preflight_ok_mit_logo(logo_tmp, kein_host_toolchain):
     config.logo_speichern(PNG)
     assert _finde(preflight.run_all(config.DEFAULTS), "logo")["status"] == "ok"
 

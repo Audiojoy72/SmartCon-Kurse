@@ -38,9 +38,6 @@ def test_kostenlos_erzwingt_keine_ki_medien(tmp_path):
 
 
 def test_curriculum_prompt_nennt_projektordner_und_briefing(tmp_path):
-    # ABWEICHUNG vom Brief: curriculum_prompt() erfordert 3 Parameter
-    # (projekt_dir, brief, material_dateien), der Brief zeigte nur 2.
-    # Wir übergeben [] für material_dateien.
     prompt = prompts.curriculum_prompt(tmp_path, BRIEF, [])
     assert str(tmp_path) in prompt
     assert BRIEF["thema"] in prompt
@@ -48,7 +45,6 @@ def test_curriculum_prompt_nennt_projektordner_und_briefing(tmp_path):
 
 
 def test_curriculum_prompt_erwaehnt_design_md_nur_wenn_sie_existiert(tmp_path):
-    # ABWEICHUNG vom Brief: curriculum_prompt() erfordert 3 Parameter (s. o.)
     ohne = prompts.curriculum_prompt(tmp_path, BRIEF, [])
     assert "design.md" not in ohne
 
