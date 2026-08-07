@@ -76,6 +76,22 @@ def _projekt_oder_404(slug: str) -> dict:
     return p
 
 
+def _schulung_oder_409(p: dict) -> None:
+    """Wehrt Schulungs-Phasen-Endpunkte für Präsentationsprojekte ab.
+
+    Ohne diese Prüfung öffnet die Detailansicht eines Decks (ladeDecks()
+    listet nur nach art gefiltert, die Projektliste selbst nicht) den
+    Schulungs-Workflow für einen Präsentationsordner — zwei Klicks starten
+    einen Curriculum-Lauf, der art/dateien überschreibt, die der
+    Präsentations-Skill erwartet.
+    """
+    art = p["briefing"].get("art") or projekte.ART_SCHULUNG
+    if art != projekte.ART_SCHULUNG:
+        raise HTTPException(
+            409, "Dieser Endpunkt ist nur für Schulungen — "
+                 f"„{p['slug']}“ ist eine Präsentation")
+
+
 def _default_design_md() -> bytes | None:
     """Die in den Einstellungen hinterlegte design.md, falls eine gesetzt ist.
 
@@ -162,6 +178,7 @@ def api_projekt_loeschen(slug: str):
 @app.post("/api/projekte/{slug}/curriculum/starten")
 def api_curriculum_starten(slug: str):
     p = _projekt_oder_404(slug)
+    _schulung_oder_409(p)
     if runner.laeuft(slug):
         raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
     projekt_dir = projekte.projekt_dir(slug)
@@ -230,7 +247,8 @@ def api_curriculum_lesen(slug: str):
 
 @app.put("/api/projekte/{slug}/curriculum")
 async def api_curriculum_schreiben(slug: str, body: dict):
-    _projekt_oder_404(slug)
+    p = _projekt_oder_404(slug)
+    _schulung_oder_409(p)
     text = body.get("text")
     if not isinstance(text, str):
         raise HTTPException(400, "Feld „text“ fehlt")
@@ -243,6 +261,7 @@ async def api_curriculum_schreiben(slug: str, body: dict):
 async def api_curriculum_kommentar(slug: str, body: dict):
     """Änderungswunsch an den Agenten — setzt die gespeicherte Session fort."""
     p = _projekt_oder_404(slug)
+    _schulung_oder_409(p)
     kommentar = (body.get("kommentar") or "").strip()
     if not kommentar:
         raise HTTPException(400, "Kommentar darf nicht leer sein")
@@ -290,6 +309,7 @@ def api_gate(slug: str):
 def api_kostenplan_starten(slug: str):
     """Startet die Runner-Phase „kostenplan" (Hintergrund) → kosten.json."""
     p = _projekt_oder_404(slug)
+    _schulung_oder_409(p)
     d = projekte.projekt_dir(slug)
     if not (d / "curriculum.md").is_file():
         raise HTTPException(404, "Noch kein curriculum.md vorhanden")
@@ -310,6 +330,7 @@ def api_kostenplan_starten(slug: str):
 def api_pruefung_starten(slug: str, body: dict | None = None):
     """Startet die Prüfungs-Phase → pruefung.json aus der Stoffquelle."""
     p = _projekt_oder_404(slug)
+    _schulung_oder_409(p)
     d = projekte.projekt_dir(slug)
     if not (d / "curriculum.md").is_file():
         raise HTTPException(404, "Noch kein curriculum.md vorhanden")
@@ -377,6 +398,7 @@ async def api_go(slug: str, body: dict | None = None):
     zuerst ins curriculum.md ein; bei Erfolg setzt der Runner „freigegeben".
     """
     p = _projekt_oder_404(slug)
+    _schulung_oder_409(p)
     d = projekte.projekt_dir(slug)
     if not (d / "curriculum.md").is_file():
         raise HTTPException(404, "Noch kein curriculum.md vorhanden")
@@ -425,6 +447,7 @@ async def api_go(slug: str, body: dict | None = None):
 def api_produktion_starten(slug: str):
     """Startet die Produktion (Teil 2 des Skills) — nur aus Phase „freigegeben"."""
     p = _projekt_oder_404(slug)
+    _schulung_oder_409(p)
     phase = p["status"].get("phase", projekte.PHASE_BRIEFING)
     if phase != projekte.PHASE_FREIGEGEBEN:
         raise HTTPException(
@@ -477,7 +500,8 @@ def _html_datei_oder_404(slug: str, dateiname: str) -> Path:
     """Validiert den Dateinamen und liefert die HTML-Datei im Projektordner."""
     _projekt_oder_404(slug)
     d = projekte.projekt_dir(slug)
-    if not _DATEINAME_RE.match(dateiname) or not dateiname.endswith(".html"):
+    if (not _DATEINAME_RE.match(dateiname) or not dateiname.endswith(".html")
+            or dateiname == pruefung.HTML_DATEINAME):
         raise HTTPException(400, "Ungültiger Dateiname")
     f = d / dateiname
     if not f.is_file() or f.resolve().parent != d.resolve():
