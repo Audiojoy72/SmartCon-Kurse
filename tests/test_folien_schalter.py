@@ -1,5 +1,8 @@
 """Schalter „Folien einbetten": aus dem Briefing in den Produktionsauftrag."""
 
+import re
+import subprocess
+
 from app import projekte, prompts
 
 FORM = {"thema": "CRA", "lernziele": "x", "zielgruppe": "KMU",
@@ -37,3 +40,27 @@ def test_block_nennt_quelle_und_zielordner(tmp_path):
     assert "app.folien" in block
     # Kein Higgsfield für Bilder, wenn die Folien die Optik liefern.
     assert "keine Bilder erzeugen" in block
+
+
+def test_block_ist_shellsicher_bei_heiklem_dateinamen(tmp_path):
+    """Ein hochgeladener Dateiname mit Quote/Backtick/$ darf im emittierten
+    Bash-Kommando NICHT als Command-Substitution oder Syntaxbruch wirken —
+    die Pfade müssen als gequotete Argumente ankommen, nicht als roher Text
+    im Python-Code."""
+    material = tmp_path / "material"
+    material.mkdir()
+    heikel = "deck`whoami`$(id)'.pptx"
+    (material / heikel).write_bytes(b"x")
+
+    block = prompts.folien_block(tmp_path, {"folien_einbetten": True})
+    fence = re.search(r"```bash\n(.*?)\n```", block, re.DOTALL).group(1)
+    argzeile = fence.strip().splitlines()[-1]
+    assert argzeile.startswith('"')
+    argteil = argzeile[1:].strip()  # hinter dem schließenden Anführungszeichen
+
+    ergebnis = subprocess.run(
+        f'printf "%s\\n" {argteil}', shell=True,
+        capture_output=True, text=True, timeout=5)
+
+    ausgabe = ergebnis.stdout.splitlines()
+    assert ausgabe == [str(material / heikel), str(tmp_path / "folien")]

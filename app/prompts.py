@@ -464,6 +464,14 @@ Der Schalter „Folien einbetten" ist an, aber es liegen **keine Folien** vor
 halte im Curriculum unter „Offene Positionen" fest, dass der Schalter ins
 Leere lief.
 """
+    # quelle stammt (über stoffquelle -> material/) ggf. aus einem
+    # hochgeladenen Dateinamen. projekte._dateiname() entschärft nur
+    # Pfad-Traversal, nicht Anführungszeichen/Backticks/$ — die dürfen daher
+    # NIE roh in den Bash-Codeblock interpoliert werden. Beide Pfade laufen
+    # deshalb als shlex-gequotete Kommandozeilen-Argumente (sys.argv) in den
+    # Python-Code, der selbst keine Pfad-Daten mehr enthält.
+    quelle_arg = shlex.quote(str(quelle))
+    ziel_arg = shlex.quote(str(ziel))
     return f"""
 ## Folien einbetten (Schalter ist an)
 
@@ -474,11 +482,12 @@ erzeugten Medien. Grundlage: {quelle}
 
 ```bash
 cd /app && python3 -c "
+import sys
 from pathlib import Path
 import app.folien as folien
-bilder = folien.exportiere(Path('{quelle}'), Path('{ziel}'))
+bilder = folien.exportiere(Path(sys.argv[1]), Path(sys.argv[2]))
 print(len(bilder), 'Folien gerendert')
-"
+" {quelle_arg} {ziel_arg}
 ```
 
 2. Binde die entstandenen `folie-NN.png` als Data-URI in die Lerneinheit ein —
