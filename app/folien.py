@@ -27,11 +27,14 @@ def werkzeuge_vorhanden() -> bool:
 
 
 def exportiere(quelle: Path, ziel_dir: Path, dpi: int = 150) -> list[Path]:
-    """Rendert jede Folie als folie-NN.png. Leert ziel_dir vorher.
+    """Rendert jede Folie als folie-NN.png in ziel_dir.
 
-    ziel_dir wird komplett gelöscht und neu angelegt — der Aufrufer muss
-    hier einen eigens dafür bestimmten Ordner übergeben (z. B.
-    projects/<slug>/folien/), nie einen geteilten oder übergeordneten Pfad.
+    ziel_dir wird erst nach vollständigem, erfolgreichem Rendern ersetzt
+    (gelöscht und neu befüllt) — schlägt der Export unterwegs fehl, bleibt
+    ziel_dir unverändert (alter Inhalt bleibt bestehen, falls vorhanden;
+    kein halbfertiges Ergebnis). Der Aufrufer muss hier einen eigens dafür
+    bestimmten Ordner übergeben (z. B. projects/<slug>/folien/), nie einen
+    geteilten oder übergeordneten Pfad.
     """
     if not quelle.is_file():
         raise FolienFehler(f"Quelldatei nicht gefunden: {quelle}")
@@ -44,13 +47,22 @@ def exportiere(quelle: Path, ziel_dir: Path, dpi: int = 150) -> list[Path]:
             "LibreOffice oder pdftoppm fehlt — im Container sind sie enthalten, "
             "auf dem Host nicht zwingend")
 
-    if ziel_dir.exists():
-        shutil.rmtree(ziel_dir)
-    ziel_dir.mkdir(parents=True)
-
+    # Gerendert wird in ein Arbeitsverzeichnis, nicht direkt in ziel_dir:
+    # bricht pdftoppm mitten im Deck ab (z. B. kaputte Seite), soll kein
+    # halbfertiges, unnormalisiertes Ergebnis in ziel_dir zurückbleiben, das
+    # der Skill für eine vollständige Folienliste halten könnte.
     with tempfile.TemporaryDirectory() as tmp:
-        pdf = _als_pdf(quelle, Path(tmp))
-        _als_pngs(pdf, ziel_dir, dpi)
+        arbeit = Path(tmp)
+        pdf = _als_pdf(quelle, arbeit)
+        bilder = arbeit / "bilder"
+        bilder.mkdir()
+        _als_pngs(pdf, bilder, dpi)
+
+        if ziel_dir.exists():
+            if not ziel_dir.is_dir():
+                raise FolienFehler(f"Zielpfad ist kein Ordner: {ziel_dir}")
+            shutil.rmtree(ziel_dir)
+        shutil.move(str(bilder), str(ziel_dir))
 
     return sorted(ziel_dir.glob("folie-*.png"))
 

@@ -85,3 +85,37 @@ def test_nummerierung_bleibt_sortierbar_ueber_99_folien(tmp_path):
     assert namen[10] == "folie-011.png"
     assert namen[-1] == "folie-100.png"
     assert namen == sorted(namen)
+
+
+def test_fehlschlag_laesst_kein_teilergebnis_in_ziel_dir(tmp_path, monkeypatch):
+    """Bricht pdftoppm mitten im Deck ab, darf ziel_dir nicht halbfertig sein.
+
+    Simuliert eine kaputte Seite spät im Deck: ein paar PNGs entstehen,
+    dann schlägt der Aufruf fehl. ziel_dir muss danach entweder gar nicht
+    existieren oder exakt seinen alten Inhalt zeigen — nie einen Rest aus
+    dem gescheiterten Versuch.
+    """
+    quelle = tmp_path / "deck.pptx"
+    quelle.write_text("x")
+    monkeypatch.setattr(folien, "werkzeuge_vorhanden", lambda: True)
+    monkeypatch.setattr(folien, "_als_pdf", lambda q, arbeit: arbeit / "deck.pdf")
+
+    def kaputt(pdf, ziel_bilder, dpi):
+        (ziel_bilder / "folie-01.png").write_bytes(b"halb")
+        raise folien.FolienFehler("pdftoppm fehlgeschlagen: kaputte Seite")
+
+    monkeypatch.setattr(folien, "_als_pngs", kaputt)
+
+    # Fall 1: ziel_dir existiert noch nicht.
+    ziel = tmp_path / "folien"
+    with pytest.raises(folien.FolienFehler):
+        folien.exportiere(quelle, ziel)
+    assert not ziel.exists()
+
+    # Fall 2: ziel_dir hat bereits ein gültiges früheres Ergebnis.
+    ziel.mkdir()
+    (ziel / "folie-01.png").write_bytes(b"alt-aber-gut")
+    with pytest.raises(folien.FolienFehler):
+        folien.exportiere(quelle, ziel)
+    assert (ziel / "folie-01.png").read_bytes() == b"alt-aber-gut"
+    assert [p.name for p in ziel.glob("*")] == ["folie-01.png"]
