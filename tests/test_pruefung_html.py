@@ -64,3 +64,24 @@ def test_lösungen_stehen_nicht_im_sichtbaren_text():
     html = pruefung.als_html(DATEN)
     fragebogen = html.split("<script")[0]
     assert "richtig" not in fragebogen
+
+
+def test_hinweis_kann_das_script_nicht_vorzeitig_beenden():
+    # "hinweis" ist ungeprüfter Agenten-Freitext (siehe _pruefe_frage). Ein
+    # "</script>" darin darf den Script-Block nicht vorzeitig schließen —
+    # sonst stehen die restlichen Lösungen als Klartext-Markup auf der Seite.
+    daten = {
+        "titel": "Sicherheit",
+        "bestehensgrenze": 70,
+        "fragen": [
+            {"frage": "Was ist XSS?", "optionen": ["Angriff", "Feature", "Bug"],
+             "richtig": 0, "thema": "Level 1",
+             "hinweis": "Testet z.B. </script><script>alert(1)</script>"},
+        ],
+    }
+    html = pruefung.als_html(daten)
+    assert "</script><script>alert(1)</script>" not in html
+    # Der HTML-Tokenizer beendet script-Inhalt nur bei "</script" — genau
+    # eine solche Sequenz darf im gesamten Dokument stehen (die echte,
+    # schließende). Der injizierte Text darf keine zweite erzeugen.
+    assert html.count("</script>") == 1

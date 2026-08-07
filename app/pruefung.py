@@ -12,6 +12,12 @@ from pathlib import Path
 MIN_OPTIONEN = 3
 MAX_OPTIONEN = 5
 
+# Name der gerenderten Prüfungsseite. Weder Stoffquelle noch Ergebnis-Datei:
+# eine Prüfung ist nicht der Stoff, den sie abfragt, und kein Nachweis der
+# Schulung — sie darf also weder in stoffquelle() noch in der Ergebnis-Liste
+# auftauchen.
+HTML_DATEINAME = "pruefung.html"
+
 
 class PruefungFehler(ValueError):
     """Die Datei ist nicht verwendbar. Die Meldung nennt die Fundstelle."""
@@ -103,7 +109,7 @@ def als_html(daten: dict, design: dict | None = None) -> str:
         optionen = "\n".join(
             f'          <label class="option">'
             f'<input type="radio" name="f{nr}" value="{i}"> '
-            f'{_html.escape(str(o))}</label>'
+            f'<span>{_html.escape(str(o))}</span></label>'
             for i, o in enumerate(frage["optionen"]))
         thema = _html.escape(str(frage.get("thema", "")))
         fragen_html.append(f"""      <li class="frage" id="frage-{nr}">
@@ -116,9 +122,15 @@ def als_html(daten: dict, design: dict | None = None) -> str:
       </li>""")
 
     # Nur das, was die Auswertung braucht.
+    # "hinweis" ist Agenten-Freitext und ungeprüft (siehe _pruefe_frage) — ein
+    # "</script>" darin würde den Script-Block vorzeitig beenden, bevor JS ihn
+    # als String liest, und alle Lösungen im Klartext offenlegen. json.dumps
+    # escaped "/" nicht, deshalb hier explizit: "<\/script>" bleibt in einem
+    # JS-String ein normales Zeichen, der HTML-Tokenizer sieht kein Tag-Ende.
     loesungen = json.dumps(
         [{"richtig": f["richtig"], "hinweis": str(f.get("hinweis", ""))}
-         for f in daten["fragen"]], ensure_ascii=False)
+         for f in daten["fragen"]], ensure_ascii=False
+    ).replace("</", "<\\/")
 
     return f"""<!doctype html>
 <html lang="de">
@@ -140,6 +152,7 @@ def als_html(daten: dict, design: dict | None = None) -> str:
     margin: 0; padding: 24px 16px;
     background: var(--bg); color: var(--text);
     font-family: Inter, system-ui, sans-serif; line-height: 1.5;
+    overflow-wrap: break-word;
   }}
   main {{ max-width: 760px; margin: 0 auto; }}
   h1 {{ font-size: 28px; line-height: 1.2; margin: 0 0 8px; }}
@@ -161,6 +174,7 @@ def als_html(daten: dict, design: dict | None = None) -> str:
     padding: 10px 12px; border-radius: 10px;
     background: rgba(255,255,255,.04); cursor: pointer;
   }}
+  .option span {{ min-width: 0; }}
   .option[hidden] {{ display: none; }}
   .rueckmeldung {{ margin: 12px 0 0; font-size: 14px; color: var(--text2); }}
   .rueckmeldung[hidden] {{ display: none; }}

@@ -88,3 +88,19 @@ def test_hochgeladene_design_md_schlaegt_den_standard(client, tmp_path, monkeypa
     slug = client.post("/api/projekte", data=FORM,
                        files={"design_md": ("eigen.md", b"eigen")}).json()["slug"]
     assert (projekte.projekt_dir(slug) / "design.md").read_bytes() == b"eigen"
+
+
+def test_pruefung_html_taucht_nicht_in_der_ergebnis_liste_auf(client):
+    # pruefung.html ist kein fertiges Deliverable, sondern die Prüfung selbst
+    # — sie darf in der Ergebnis-Liste nicht neben der echten Schulung
+    # auftauchen (sonst könnte sie z. B. heruntergeladen und als Nacharbeit
+    # verwechselt werden).
+    from app import projekte
+
+    slug = client.post("/api/projekte", data=FORM).json()["slug"]
+    d = projekte.projekt_dir(slug)
+    (d / "schulung.html").write_text("<html></html>")
+    (d / "pruefung.html").write_text("<html></html>")
+
+    namen = {e["name"] for e in client.get(f"/api/projekte/{slug}/ergebnis").json()["dateien"]}
+    assert namen == {"schulung.html"}

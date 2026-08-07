@@ -6,6 +6,8 @@ import re
 import shlex
 from pathlib import Path
 
+from . import pruefung
+
 ROOT = Path(__file__).resolve().parent.parent
 SKILL_MD = ROOT / "skill" / "schulung" / "SKILL.md"
 SKILL_SCRIPTS = ROOT / "skill" / "schulung" / "scripts"
@@ -430,9 +432,12 @@ def stoffquelle(projekt_dir: Path) -> Path | None:
             return folien[-1]
 
     # Jüngste statt alphabetisch erste: Im Projektordner liegen während des
-    # Laufs regelmäßig Zwischendateien.
+    # Laufs regelmäßig Zwischendateien. pruefung.html ist ausgeschlossen —
+    # sie ist die Prüfung, nicht der Stoff, den sie abfragt; sonst würde ein
+    # geöffneter Prüfungsbogen per mtime zur Stoffquelle der nächsten Prüfung.
     seiten = sorted(
-        (p for p in projekt_dir.glob("*.html") if p.is_file()),
+        (p for p in projekt_dir.glob("*.html")
+         if p.is_file() and p.name != pruefung.HTML_DATEINAME),
         key=lambda p: p.stat().st_mtime)
     return seiten[-1] if seiten else None
 

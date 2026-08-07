@@ -82,3 +82,21 @@ def test_html_verzeichnis_wird_nicht_genommen(tmp_path):
     echte_seite = tmp_path / "real_schulung.html"
     echte_seite.write_text("<html></html>")
     assert stoffquelle(tmp_path) == echte_seite
+
+
+def test_pruefung_html_zaehlt_nicht_als_stoffquelle(tmp_path):
+    # Eine Prüfung ist nicht der Stoff, den sie abfragt. Sonst würde ein
+    # geöffneter Prüfungsbogen (der bei jedem GET neu geschrieben wird) per
+    # mtime zur Stoffquelle der nächsten Prüfung — die Prüfung würde sich
+    # selbst zur Grundlage.
+    (tmp_path / "pruefung.html").write_text("<html></html>")
+    assert stoffquelle(tmp_path) is None
+
+
+def test_juengere_pruefung_html_verdraengt_die_echte_seite_nicht(tmp_path):
+    seite = tmp_path / "schulung.html"
+    seite.write_text("<html></html>")
+    pruefungsseite = tmp_path / "pruefung.html"
+    pruefungsseite.write_text("<html></html>")
+    os.utime(seite, (1, 1))  # pruefung.html ist die jüngere Datei
+    assert stoffquelle(tmp_path) == seite

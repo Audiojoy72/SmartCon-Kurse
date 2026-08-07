@@ -354,7 +354,12 @@ def api_pruefung_html(slug: str):
     except pruefung.PruefungFehler as e:
         raise HTTPException(400, str(e))
 
-    ziel = d / "pruefung.html"
+    # Schreibt bei jedem GET neu (Read-Endpunkt mit Nebenwirkung) — bewusst so,
+    # damit die Datei immer den aktuellen Stand von pruefung.json zeigt. Der
+    # Name ist deshalb aus stoffquelle() und der Ergebnis-Liste ausgeschlossen
+    # (siehe pruefung.HTML_DATEINAME): sonst würde ein geöffneter Prüfungsbogen
+    # per mtime zur Stoffquelle der nächsten Prüfung oder als Ergebnis gelistet.
+    ziel = d / pruefung.HTML_DATEINAME
     ziel.write_text(pruefung.als_html(daten), encoding="utf-8")
     return FileResponse(ziel, filename=ziel.name, media_type="text/html")
 
@@ -484,7 +489,8 @@ def api_ergebnis_liste(slug: str):
     dateien = [
         {"name": f.name, "groesse": f.stat().st_size,
          "mtime": f.stat().st_mtime}
-        for f in d.glob("*.html") if f.is_file()
+        for f in d.glob("*.html")
+        if f.is_file() and f.name != pruefung.HTML_DATEINAME
     ]
     dateien.sort(key=lambda e: e["mtime"], reverse=True)
     return {"dateien": dateien}
