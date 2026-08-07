@@ -424,12 +424,14 @@ def stoffquelle(projekt_dir: Path) -> Path | None:
     if material.is_dir():
         folien = sorted(
             (p for p in material.iterdir()
-             if p.suffix.lower() in _FOLIEN_ENDUNGEN),
+             if p.is_file() and p.suffix.lower() in _FOLIEN_ENDUNGEN),
             key=lambda p: p.stat().st_mtime)
         if folien:
             return folien[-1]
 
     # Jüngste statt alphabetisch erste: Im Projektordner liegen während des
     # Laufs regelmäßig Zwischendateien.
-    seiten = sorted(projekt_dir.glob("*.html"), key=lambda p: p.stat().st_mtime)
+    seiten = sorted(
+        (p for p in projekt_dir.glob("*.html") if p.is_file()),
+        key=lambda p: p.stat().st_mtime)
     return seiten[-1] if seiten else None

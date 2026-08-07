@@ -59,5 +59,26 @@ def test_material_ohne_folien_zaehlt_nicht(tmp_path):
     seite.write_text("<html></html>")
     material = tmp_path / "material"
     material.mkdir()
-    (material / "notiz.md").write_text("x")
+    (material / "notiz.pdf.txt").write_text("x")
     assert stoffquelle(tmp_path) == seite
+
+
+def test_verzeichnis_mit_foliensuffix_wird_nicht_genommen(tmp_path):
+    # Extraktions- und Sync-Tools erstellen manchmal Verzeichnisse statt
+    # Dateien mit gleichen Namen (z.B. deck.pptx/). Das darf nicht als Datei
+    # zurückgegeben werden.
+    material = tmp_path / "material"
+    material.mkdir()
+    (material / "deck.pptx").mkdir()  # Verzeichnis, kein File
+    echte_datei = material / "real_deck.pptx"
+    echte_datei.write_bytes(b"x")
+    assert stoffquelle(tmp_path) == echte_datei
+
+
+def test_html_verzeichnis_wird_nicht_genommen(tmp_path):
+    # Das Gleiche für *.html im Projektordner: auch hier kann ein Verzeichnis
+    # statt einer Datei existieren.
+    (tmp_path / "schulung.html").mkdir()  # Verzeichnis
+    echte_seite = tmp_path / "real_schulung.html"
+    echte_seite.write_text("<html></html>")
+    assert stoffquelle(tmp_path) == echte_seite
