@@ -39,6 +39,38 @@ def test_pfadtrick_im_slug_ist_kein_treffer(client):
     assert client.get("/api/projekte/..%2F..%2Fetc").status_code in (400, 404)
 
 
+def test_lifespan_raeumt_abgelaufene_sitzungen_auf(tmp_path, monkeypatch):
+    """Important 4 (zweiter Teil): abgelaufene Sitzungen wachsen sonst
+    unbegrenzt in der Tabelle mit."""
+    from datetime import datetime, timedelta, timezone
+
+    from fastapi.testclient import TestClient
+
+    from app import db, main
+
+    monkeypatch.setattr(db, "DB_PFAD", tmp_path / "kurse.db")
+    db.init()
+    abgelaufen = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(timespec="seconds")
+    gueltig = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(timespec="seconds")
+    conn = db.verbinden()
+    conn.execute("INSERT INTO teilnehmer (email, name, angelegt_am) VALUES (?, ?, ?)",
+                 ("anna@example.org", "Anna", gueltig))
+    tid = conn.execute("SELECT id FROM teilnehmer").fetchone()[0]
+    conn.execute("INSERT INTO sitzung (token_hash, teilnehmer_id, gueltig_bis) VALUES (?, ?, ?)",
+                 ("abgelaufen", tid, abgelaufen))
+    conn.execute("INSERT INTO sitzung (token_hash, teilnehmer_id, gueltig_bis) VALUES (?, ?, ?)",
+                 ("gueltig", tid, gueltig))
+    conn.close()
+
+    with TestClient(main.app):
+        pass  # löst Start-/Stop-Lifespan aus, ohne einen Request zu senden
+
+    conn = db.verbinden()
+    reste = {r["token_hash"] for r in conn.execute("SELECT token_hash FROM sitzung")}
+    conn.close()
+    assert reste == {"gueltig"}
+
+
 def test_curriculum_starten_setzt_phase_und_startet_den_agenten(client):
     slug = client.post("/api/projekte", data=FORM).json()["slug"]
     antwort = client.post(f"/api/projekte/{slug}/curriculum/starten")

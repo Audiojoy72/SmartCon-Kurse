@@ -8,6 +8,7 @@ import json
 import queue
 import re
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -26,6 +27,13 @@ async def _lifespan(app: FastAPI):
     # ein Aufruf dort würde bei jedem Testlauf die echte data/kurse.db anlegen.
     # schema_anlegen() ist idempotent — kostet bei jedem Start nichts.
     db.init()
+    # Abgelaufene Sitzungen wachsen sonst unbegrenzt in der Tabelle mit.
+    conn = db.verbinden()
+    try:
+        conn.execute("DELETE FROM sitzung WHERE gueltig_bis <= ?",
+                     (datetime.now(timezone.utc).isoformat(timespec="seconds"),))
+    finally:
+        conn.close()
     yield
 
 

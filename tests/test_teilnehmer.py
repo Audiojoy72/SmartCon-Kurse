@@ -1,6 +1,7 @@
 """Teilnehmer, Teilnahmen, Freischaltung und Anmeldung."""
 
 import sqlite3
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -229,6 +230,52 @@ def test_anmelden_braucht_fuer_alle_faelle_aehnlich_lang(datenbank):
 
     assert nicht_freigeschaltet > freigeschaltet / 5
     assert unbekannt > freigeschaltet / 5
+
+
+def test_login_scrypt_ist_auf_wenige_parallele_aufrufe_begrenzt(datenbank, monkeypatch):
+    """Important 2: 40 gleichzeitige Logins dürfen nicht 40 scrypt-Aufrufe
+
+    (~128 MiB je Aufruf, siehe zugang.SCRYPT_MAXMEM) gleichzeitig auslösen.
+    Der Deckel muss für JEDEN Aufrufpfad gelten — hier absichtlich mit dem
+    unbekannte-Adresse-Pfad geprüft, weil der am leichtesten zu vergessen
+    wäre (dummy-Hash statt echtem Datenbankeintrag)."""
+    aktuell = 0
+    maximal = 0
+    lock = threading.Lock()
+
+    def langsam(passwort, hinterlegt):
+        nonlocal aktuell, maximal
+        with lock:
+            aktuell += 1
+            maximal = max(maximal, aktuell)
+        time.sleep(0.05)
+        with lock:
+            aktuell -= 1
+        return False
+
+    monkeypatch.setattr(teilnehmer.zugang, "passwort_pruefen", langsam)
+
+    threads = [threading.Thread(target=teilnehmer.anmelden,
+                                args=("niemand@example.org", "egal"))
+               for _ in range(12)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert maximal <= 4
+
+
+def test_freischalten_beendet_bestehende_sitzungen(datenbank):
+    """Important 4: sonst überlebt eine kompromittierte Sitzung den Reset."""
+    tid = teilnehmer.anlegen("anna@example.org", "Anna")
+    altes_passwort = teilnehmer.freischalten(tid)
+    token = teilnehmer.anmelden("anna@example.org", altes_passwort)
+    assert teilnehmer.sitzung_pruefen(token) is not None
+
+    teilnehmer.freischalten(tid)  # neues Passwort, gleicher Teilnehmer
+
+    assert teilnehmer.sitzung_pruefen(token) is None
 
 
 def test_unbekannter_token_ergibt_none(datenbank):

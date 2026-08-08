@@ -6,9 +6,10 @@ Passwort — vorher ist `passwort_hash` leer, und ein Login-Versuch scheitert.
 """
 
 import sqlite3
+import threading
 from datetime import datetime, timedelta, timezone
 
-from . import db, zugang
+from . import db, versuche, zugang
 
 SITZUNG_STUNDEN = 24
 
@@ -18,6 +19,17 @@ SITZUNG_STUNDEN = 24
 # Quelltext, nicht neu pro Aufruf — beides würde entweder ein festes Timing-
 # Ziel bieten oder die Kosten jedes Logins verdoppeln).
 _DUMMY_PASSWORT_HASH = zugang.passwort_hashen(zugang.passwort_erzeugen())
+
+# scrypt mit N=2**17, r=8 belegt ~128 MiB je Aufruf (zugang.SCRYPT_MAXMEM).
+# Ohne Deckel darf jeder — auch ohne Zugangsdaten — die Login-Route beliebig
+# oft parallel aufrufen; Starlette schickt jeden sync `def`-Endpunkt in den
+# anyio-Threadpool (Default 40 Slots), macht also 40 parallele scrypt-Aufrufe
+# aus 40 gleichzeitigen Requests möglich — gut 5 GB, auf einer Maschine, die
+# auch n8n, Nextcloud und Docker trägt. Der Deckel gilt für JEDEN Aufruf von
+# passwort_pruefen() in anmelden(), auch den Dummy-Hash-Pfad für unbekannte
+# Adressen — sonst käme die Zeitgleichheit (siehe unten) wieder abhanden.
+# 4 gleichzeitige Aufrufe bleiben mit ~512 MiB deutlich unter 1 GB.
+_SCRYPT_SLOTS = threading.Semaphore(4)
 
 
 class TeilnehmerFehler(ValueError):
@@ -131,6 +143,10 @@ def freischalten(teilnehmer_id: int, tage: int = 30) -> str:
             "UPDATE teilnahme SET gueltig_bis = ?, freigeschaltet_am = ? "
             "WHERE teilnehmer_id = ?",
             (bis, _iso(_jetzt()), teilnehmer_id))
+        # Ein neues Passwort muss auch jede laufende Sitzung beenden — sonst
+        # überlebt eine kompromittierte Sitzung den Reset bis zu 24 Stunden.
+        conn.execute("DELETE FROM sitzung WHERE teilnehmer_id = ?",
+                     (teilnehmer_id,))
         conn.execute("COMMIT")
         return passwort
     except Exception:
@@ -185,7 +201,8 @@ def anmelden(email: str, passwort: str) -> str | None:
             "SELECT id, passwort_hash FROM teilnehmer WHERE email = ?",
             (email,)).fetchone()
         hash_ = (zeile["passwort_hash"] if zeile is not None else "") or _DUMMY_PASSWORT_HASH
-        richtig = zugang.passwort_pruefen(passwort, hash_)
+        with _SCRYPT_SLOTS:
+            richtig = zugang.passwort_pruefen(passwort, hash_)
         if zeile is None or not richtig:
             return None
 
@@ -237,7 +254,11 @@ def abmelden(token: str) -> None:
 
 
 def teilnahmen_von(teilnehmer_id: int) -> list[dict]:
-    """Die Teilnahmen eines Teilnehmers, mit `offen` je Eintrag."""
+    """Die Teilnahmen eines Teilnehmers, mit `offen` und `bestanden` je Eintrag.
+
+    `bestanden` ist nötig, damit die Kursliste den Nachweis auch nach Ablauf
+    des Zugangsfensters noch verlinken kann (siehe portal.kursliste).
+    """
     conn = db.verbinden()
     try:
         teilnahmen = [dict(z) for z in conn.execute(
@@ -245,6 +266,7 @@ def teilnahmen_von(teilnehmer_id: int) -> list[dict]:
             (teilnehmer_id,))]
         for tn in teilnahmen:
             tn["offen"] = teilnahme_offen(tn)
+            tn["bestanden"] = versuche.bestanden(tn["id"]) is not None
         return teilnahmen
     finally:
         conn.close()
