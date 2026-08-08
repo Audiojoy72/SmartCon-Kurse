@@ -38,6 +38,15 @@ PHASE_PRODUKTION_LAEUFT = "produktion_laeuft"
 PHASE_FERTIG = "fertig"
 PHASE_FEHLER = "fehler"
 
+PHASE_PRAESENTATION_LAEUFT = "praesentation_laeuft"
+PHASE_PRAESENTATION_FERTIG = "praesentation_fertig"
+
+PHASE_PRUEFUNG_LAEUFT = "pruefung_laeuft"
+
+# Projektarten. Bestandsprojekte haben kein art-Feld und sind Schulungen.
+ART_SCHULUNG = "schulung"
+ART_PRAESENTATION = "praesentation"
+
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
@@ -67,6 +76,15 @@ def projekt_dir(slug: str) -> Path | None:
     return d if d.is_dir() else None
 
 
+# Zeichen, die in einem hochgeladenen Dateinamen erlaubt bleiben: Buchstaben
+# (inkl. Umlaute — \w ist in Python 3 unicode-aware), Ziffern, Whitespace und
+# eine kleine, ungefährliche Interpunktion. Alles andere raus — der Name
+# landet unverändert in Prosa-Prompts (praesentation.py, prompts.py) und im
+# einen verbliebenen Shell-Kommando; Backticks, "$(", Anführungszeichen &Co.
+# dort zuzulassen wäre ein Einfallstor für jede künftige Interpolationsstelle.
+_DATEINAME_ERLAUBT_RE = re.compile(r"[^\w\s.\-(),+]", re.UNICODE)
+
+
 def _dateiname(name: str) -> str:
     """Basisname einer hochgeladenen Datei, URL-Kodierung zurückgedreht.
 
@@ -81,7 +99,7 @@ def _dateiname(name: str) -> str:
     name = Path(name).name
     if "%" in name:
         name = Path(unquote(name)).name
-    return name
+    return _DATEINAME_ERLAUBT_RE.sub("", name)
 
 
 def _freier_slug(base: str) -> str:
@@ -201,10 +219,12 @@ def liste() -> list[dict]:
         if status is None:
             continue
         thema = ""
+        brief_data = {}
         brief = d / "brief.json"
         if brief.exists():
             try:
-                thema = json.loads(brief.read_text(encoding="utf-8")).get("thema", "")
+                brief_data = json.loads(brief.read_text(encoding="utf-8"))
+                thema = brief_data.get("thema", "")
             except (json.JSONDecodeError, OSError):
                 pass
         out.append({
@@ -212,6 +232,7 @@ def liste() -> list[dict]:
             "thema": thema,
             "phase": status.get("phase", PHASE_BRIEFING),
             "geaendert_am": status.get("geaendert_am", ""),
+            "art": brief_data.get("art") or ART_SCHULUNG,
         })
     out.sort(key=lambda p: p["geaendert_am"], reverse=True)
     return out
@@ -240,6 +261,14 @@ def get(slug: str) -> dict | None:
         "material": sorted(p.name for p in mat.iterdir() if p.is_file())
                     if mat.is_dir() else [],
     }
+
+
+def art(slug: str) -> str:
+    """Projektart aus der brief.json. Fehlt sie, ist es eine Schulung."""
+    p = get(slug)
+    if not p:
+        return ART_SCHULUNG
+    return (p["briefing"].get("art") or ART_SCHULUNG)
 
 
 def loeschen(slug: str) -> bool:

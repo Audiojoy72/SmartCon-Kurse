@@ -44,6 +44,25 @@ cinematic — nur eben in der CI des Kunden.
 Das gewählte Preset (und ggf. die design.md) **vor Phase 2 lesen**, nicht erst vor Phase 9:
 sie bestimmen schon die Guide-Figur und die Bild-Prompts.
 
+## Folien einbetten: der zweite Produktionspfad
+
+Enthält der Arbeitsauftrag einen Abschnitt „Folien einbetten (Schalter ist an)",
+gilt dieser Pfad **anstelle** der Bild- und Filmproduktion:
+
+- Die PNG-Sequenz aus `folien/` ist die Optik der Level. Jede Folie wird als
+  Data-URI eingebettet, damit die Datei offline lauffähig bleibt.
+- **Keine Higgsfield-Bilder, keine Filme.** Voiceover und HTML-Animationen
+  bleiben erlaubt und kosten wie gewohnt.
+- Eine Folie kann mehrere Level tragen und ein Level mehrere Folien. Die
+  Zuordnung gehört ins Curriculum, damit sie nachvollziehbar bleibt.
+- Folien sind 16:9 und breit. Auf schmalen Displays skaliert das Bild auf
+  `max-width: 100%`; Text auf der Folie darf **nicht** die einzige Quelle einer
+  Information sein — der Lehrtext daneben trägt den Inhalt.
+- Der Kostenplan führt in diesem Fall nur Voiceover-Posten. Die Bild- und
+  Filmzeilen entfallen ersatzlos, nicht mit 0 Credits.
+
+Fehlt der Abschnitt im Auftrag, gilt unverändert der bisherige Pfad.
+
 ## Der Ablauf hat zwei Teile — niemals vermischen
 
 | | **TEIL 1 — Curriculum** | **TEIL 2 — Produktion** |

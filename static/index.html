@@ -6,13 +6,14 @@
 <title>SmartCon-Schulungen</title>
 <!-- ?v= bei jeder Frontend-Änderung hochzählen — sonst hängt auf dem Handy
      die alte Fassung im Cache und der Fix ist unsichtbar. -->
-<link rel="stylesheet" href="/static/style.css?v=5">
+<link rel="stylesheet" href="/static/style.css?v=9">
 </head>
 <body>
 <header>
   <h1>SmartCon-Schulungen</h1>
   <nav>
     <button id="tab-projekte" class="tab aktiv" data-tab="projekte">Projekte</button>
+    <button id="tab-decks" class="tab" data-tab="decks">Präsentationen</button>
     <button id="tab-ampel" class="tab" data-tab="ampel">System-Check</button>
     <button id="tab-settings" class="tab" data-tab="settings">Einstellungen</button>
   </nav>
@@ -86,6 +87,13 @@
           </label>
           <p class="muted" id="ki-medien-hinweis" hidden>Aus, weil das Preset
             „kostenlos" gewählt ist — bei den anderen Presets frei wählbar.</p>
+          <label class="checkbox" id="folien-wrap">
+            <input name="folien_einbetten" type="checkbox" value="ja">
+            Folien der hochgeladenen Präsentation einbetten
+          </label>
+          <p class="muted" id="folien-hinweis">Die Lerneinheit zeigt dann genau
+            die Folien statt neu erzeugter Bilder — kostet keine Credits und hält
+            Deck und Einheit deckungsgleich.</p>
         </fieldset>
         <label id="design-upload-wrap" class="design-upload">Eigenes Design (optional)
           <input name="design_md" type="file" accept=".md,text/markdown">
@@ -172,6 +180,22 @@
            kosten erneut Credits.</p>
       </div>
 
+      <!-- Prüfung: sichtbar in den Phasen „fertig" und „pruefung_laeuft" -->
+      <div id="pruefungsblock" hidden>
+        <h3>Abschlussprüfung</h3>
+        <p class="muted">Gefragt wird nur, was ausgeliefert wurde: eine
+          hochgeladene Präsentation schlägt die erzeugte Lerneinheit, beide
+          schlagen das Curriculum.</p>
+        <div class="zeile">
+          <label>Bestehensgrenze (%)
+            <input id="bestehensgrenze" type="number" min="1" max="100" value="70">
+          </label>
+          <button id="btn-pruefung-start">Prüfung erzeugen</button>
+          <span id="pruefung-status" class="muted"></span>
+        </div>
+        <div id="pruefung-ergebnis"></div>
+      </div>
+
       <!-- Löschen: immer sichtbar, ganz unten, zweistufig bestätigt -->
       <div id="loeschen">
         <button id="btn-loeschen" class="gefahr">Schulung löschen</button>
@@ -187,6 +211,54 @@
           </div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section id="view-decks" class="view">
+    <div id="dv-liste">
+      <div class="view-kopf">
+        <h2>Präsentationen</h2>
+        <button id="btn-deck-neu">Neue Präsentation</button>
+      </div>
+      <p class="muted">Thema und Quellen rein, PowerPoint im AI-SmartCon-CI
+        raus. Kostet keine Higgsfield-Credits.</p>
+      <div id="deck-liste"></div>
+    </div>
+
+    <div id="dv-formular" hidden>
+      <div class="view-kopf">
+        <h2>Neue Präsentation</h2>
+        <button id="btn-deck-form-zurueck">Zurück</button>
+      </div>
+      <form id="deck-form">
+        <label>Thema <input name="thema" required></label>
+        <label>Zielgruppe <input name="zielgruppe"></label>
+        <label>Inhalte / Lernziele <textarea name="lernziele" rows="3"></textarea></label>
+        <label>Vorwissen <input name="vorwissen"></label>
+        <label>Sprache <input name="sprache" value="Deutsch"></label>
+        <label>Dauer <input name="dauer" placeholder="45 Minuten"></label>
+        <label>Quellen (eine je Zeile)
+          <textarea name="quellen" rows="4"
+            placeholder="https://eur-lex.europa.eu/…"></textarea></label>
+        <label>Material (optional, geht der Websuche vor)
+          <input name="material" type="file" multiple></label>
+        <div class="zeile">
+          <button type="submit">Präsentation erzeugen</button>
+          <span id="deck-form-status" class="muted"></span>
+        </div>
+      </form>
+    </div>
+
+    <div id="dv-detail" hidden>
+      <div class="view-kopf">
+        <h2 id="deck-titel">Präsentation</h2>
+        <button id="btn-deck-zurueck">Zurück zur Liste</button>
+      </div>
+      <div class="zeile">
+        <span id="deck-badge" class="badge"></span>
+      </div>
+      <div id="deck-log" class="log"><p class="muted">Noch kein Lauf gestartet.</p></div>
+      <div id="deck-dateien"></div>
     </div>
   </section>
 
@@ -216,6 +288,16 @@
           <code>/app/projects/</code> und die gemounteten Home-Verzeichnisse
           unter <code>/root/</code>.</small>
       </label>
+      <label>Haus-Logo (PNG, optional)
+        <input id="logo-datei" type="file" accept="image/png">
+        <small>Wird in Präsentationen eingebettet. Ohne Logo bricht ein
+          Präsentationslauf ab, statt einen Ersatz zu erfinden.</small>
+      </label>
+      <div class="zeile">
+        <button type="button" id="btn-logo-upload">Logo hochladen</button>
+        <button type="button" id="btn-logo-loeschen">Entfernen</button>
+        <span id="logo-status" class="muted"></span>
+      </div>
       <fieldset>
         <legend>Transkription (Whisper)</legend>
         <label>Modus
@@ -267,6 +349,6 @@
   für den tollen Skill
 </footer>
 
-<script src="/static/app.js?v=5"></script>
+<script src="/static/app.js?v=9"></script>
 </body>
 </html>

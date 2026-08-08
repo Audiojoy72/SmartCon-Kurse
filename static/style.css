@@ -50,6 +50,8 @@ main { flex: 1; padding: 2rem; max-width: 860px; width: 100%; margin: 0 auto; }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;   /* „Präsentationen" + „Neue Präsentation" passen bei 320px nicht in eine Zeile */
+  gap: .5rem;
 }
 
 .muted { color: var(--muted); font-size: .9rem; }
@@ -157,7 +159,7 @@ fieldset {
 }
 legend { padding: 0 .5rem; color: var(--muted); font-size: .9rem; }
 
-.zeile { display: flex; gap: .5rem; margin-top: .35rem; }
+.zeile { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .35rem; }
 .zeile input { margin-top: 0; flex: 1; }
 .zeile button { white-space: nowrap; }
 
@@ -402,3 +404,28 @@ footer {
 }
 footer a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--line); }
 footer a:hover { color: var(--ok); border-bottom-color: var(--ok); }
+
+/* --- Präsentationen --- */
+
+.karte {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.karte:hover { border-color: var(--muted); }
+.karte[hidden] { display: none; }
+
+.download {
+  display: inline-block;
+  margin-right: 12px;
+  margin-bottom: 6px;
+  word-break: break-all;
+  color: var(--text);
+}
+.download[hidden] { display: none; }

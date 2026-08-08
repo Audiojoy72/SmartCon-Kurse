@@ -6,6 +6,8 @@ import re
 import shlex
 from pathlib import Path
 
+from . import folien, pruefung
+
 ROOT = Path(__file__).resolve().parent.parent
 SKILL_MD = ROOT / "skill" / "schulung" / "SKILL.md"
 SKILL_SCRIPTS = ROOT / "skill" / "schulung" / "scripts"
@@ -339,6 +341,12 @@ Preset. Medien- und Kostenregeln bleiben davon unberührt.
 """
     else:
         design_block = ""
+    try:
+        brief = json.loads(
+            (projekt_dir / "brief.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        brief = {}
+    folien_teil = folien_block(projekt_dir, brief)
     if not _projekt_ki_medien(projekt_dir):
         kostenlos_block = f"""
 ## KI-Medien: Nein (0 Credits — medienloser Zweig)
@@ -394,7 +402,7 @@ Arbeite danach TEIL 2 vollständig ab — von Phase 2.5 (Preflight) bis Phase 11
 (Auslieferung). Quelle ist ausschließlich die Datei curriculum.md in diesem
 Projektordner: was produziert wird, steht dort. Nicht improvisieren, keine
 Rückfragen (kein AskUserQuestion).
-{design_block}{kostenlos_block}
+{design_block}{kostenlos_block}{folien_teil}
 {reihenfolge}
 
 ## Abschluss
@@ -402,3 +410,171 @@ Rückfragen (kein AskUserQuestion).
 Beende den Lauf mit einer kurzen Zusammenfassung als letztem Text: Name der
 fertigen HTML-Datei, Anzahl produzierter Medien (Bilder/Videos/Voiceovers)
 und die von dir mitgezählten Credits."""
+
+
+# Formate, die einen Foliensatz tragen können.
+_FOLIEN_ENDUNGEN = (".pptx", ".pdf", ".key", ".odp")
+
+
+def stoffquelle(projekt_dir: Path) -> Path | None:
+    """Die Datei, die den tatsächlich behandelten Stoff trägt.
+
+    Das ist NICHT das curriculum.md: Das ist der Plan, und zwischen Plan und
+    Auslieferung liegt die Produktion, die kürzt und gewichtet. Geprüft werden
+    darf nur, was die Teilnehmer auch bekommen haben.
+
+    Vorrang hat eine hochgeladene Präsentation im material/-Ordner — bei einer
+    Live-Schulung ist der Foliensatz der behandelte Stoff, nicht die Nacharbeit.
+    Fehlt sie, gilt die erzeugte Lerneinheit. Ohne beides: None; der Aufrufer
+    fällt dann sichtbar auf das Curriculum zurück.
+    """
+    # (mtime, name) statt nur mtime: Dateien eines Uploads landen alle in
+    # derselben Schleife (projekte.create()) und können dieselbe mtime tragen
+    # — ohne Tiebreak entscheidet dann die Dateisystem-Reihenfolge, worauf
+    # die Prüfung aufbaut.
+    material = projekt_dir / "material"
+    if material.is_dir():
+        folien = sorted(
+            (p for p in material.iterdir()
+             if p.is_file() and p.suffix.lower() in _FOLIEN_ENDUNGEN),
+            key=lambda p: (p.stat().st_mtime, p.name))
+        if folien:
+            return folien[-1]
+
+    # Jüngste statt alphabetisch erste: Im Projektordner liegen während des
+    # Laufs regelmäßig Zwischendateien. pruefung.html ist ausgeschlossen —
+    # sie ist die Prüfung, nicht der Stoff, den sie abfragt; sonst würde ein
+    # geöffneter Prüfungsbogen per mtime zur Stoffquelle der nächsten Prüfung.
+    seiten = sorted(
+        (p for p in projekt_dir.glob("*.html")
+         if p.is_file() and p.name != pruefung.HTML_DATEINAME),
+        key=lambda p: (p.stat().st_mtime, p.name))
+    return seiten[-1] if seiten else None
+
+
+def folien_block(projekt_dir: Path, brief: dict) -> str:
+    """Textbaustein für den Produktions-Prompt. Leer, wenn der Schalter aus ist."""
+    if not brief.get("folien_einbetten"):
+        return ""
+
+    quelle = stoffquelle(projekt_dir)
+    ziel = projekt_dir / "folien"
+    if quelle is None or quelle.suffix.lower() not in folien.QUELLFORMATE:
+        return """
+## Folien einbetten — nicht möglich
+
+Der Schalter „Folien einbetten" ist an, aber es liegen **keine Folien** vor
+(weder im Ordner `material/` noch als PDF). Erzeuge die Medien wie üblich und
+halte im Curriculum unter „Offene Positionen" fest, dass der Schalter ins
+Leere lief.
+"""
+    # quelle stammt (über stoffquelle -> material/) ggf. aus einem
+    # hochgeladenen Dateinamen. projekte._dateiname() entschärft nur
+    # Pfad-Traversal, nicht Anführungszeichen/Backticks/$ — die dürfen daher
+    # NIE roh in den Bash-Codeblock interpoliert werden. Beide Pfade laufen
+    # deshalb als shlex-gequotete Kommandozeilen-Argumente (sys.argv) in den
+    # Python-Code, der selbst keine Pfad-Daten mehr enthält.
+    quelle_arg = shlex.quote(str(quelle))
+    ziel_arg = shlex.quote(str(ziel))
+    return f"""
+## Folien einbetten (Schalter ist an)
+
+Die Optik der Level kommt aus dem ausgelieferten Foliensatz, nicht aus neu
+erzeugten Medien. Grundlage: {quelle}
+
+1. Rendere die Folien einmalig als PNG-Sequenz:
+
+```bash
+cd /app && python3 -c "
+import sys
+from pathlib import Path
+import app.folien as folien
+bilder = folien.exportiere(Path(sys.argv[1]), Path(sys.argv[2]))
+print(len(bilder), 'Folien gerendert')
+" {quelle_arg} {ziel_arg}
+```
+
+2. Binde alle PNG-Dateien, die danach in {ziel} liegen (Muster
+   `folie-*.png`, alphabetisch sortiert = Foliennummer — die Breite der
+   Nummer richtet sich nach der Folienzahl, KEIN festes Zwei-Ziffern-Format
+   annehmen), als Data-URI in die Lerneinheit ein — je Level die Folien, die
+   den Stoff dieses Levels tragen.
+3. **Für die Level keine Bilder erzeugen** und keine Filme anfordern: Der
+   Foliensatz ist die Optik. Voiceover und Animationen bleiben erlaubt.
+4. Halte im Curriculum fest, welche Folie zu welchem Level gehört.
+"""
+
+
+def pruefung_prompt(projekt_dir: Path, bestehensgrenze: int = 70) -> str:
+    """Arbeitsauftrag: pruefung.json aus dem ausgelieferten Stoff.
+
+    Schema als Literal, absoluter Zielpfad, „nur JSON“ — dieselbe Bauart wie
+    kostenplan_prompt. Eine erzwungene Datei ist nötig, weil der Abschluss-Check
+    im curriculum.md in wechselnden Notationen steht.
+    """
+    quelle = stoffquelle(projekt_dir)
+    schema = f"""
+{{
+  "titel": "Abschlussprüfung <Thema>",
+  "bestehensgrenze": {bestehensgrenze},
+  "fragen": [
+    {{"frage": "vollständig ausformulierte Frage auf Deutsch",
+     "optionen": ["Antwort A", "Antwort B", "Antwort C", "Antwort D"],
+     "richtig": 0,
+     "thema": "Level 3",
+     "hinweis": "Ein Satz, warum das die richtige Antwort ist."}}
+  ]
+}}
+"""
+    if quelle is not None:
+        grundlage = f"""Lies zuerst {quelle} vollständig. **Das ist der Stoff,
+der behandelt wurde, und die alleinige Grundlage der Prüfung.**
+
+Lies danach {projekt_dir / 'curriculum.md'} — aber nur, um die Gliederung zu kennen
+und jede Frage einem Level zuzuordnen. Inhalte, die dort stehen und in
+{quelle.name} fehlen, sind NICHT Stoff und dürfen nicht gefragt werden."""
+        stoff_regeln = f"""- **Jede Frage muss sich aus {quelle.name} allein beantworten lassen.**
+  Prüfe das für jede einzelne Frage, bevor du sie aufnimmst: Steht die
+  richtige Antwort dort? Wenn nein, verwirf die Frage. Kein Vorwissen, keine
+  Ergänzung aus eigener Kenntnis, nichts aus der Recherche — auch dann nicht,
+  wenn es fachlich richtig wäre.
+- Was mündlich ergänzt wurde, steht dir nicht zur Verfügung und ist kein Stoff.
+- Lieber weniger Fragen als eine, die im Material nicht gedeckt ist.
+- 10 bis 15 Fragen, verteilt über die Level, die in {quelle.name} tatsächlich
+  vorkommen — ein dort nicht behandeltes Level bleibt ohne Frage."""
+    else:
+        grundlage = f"""Lies {projekt_dir / 'curriculum.md'} vollständig — alle
+Level mit ihren Lernzielen und Merksätzen.
+
+ACHTUNG: Es liegt weder eine hochgeladene Präsentation noch eine erzeugte
+Lerneinheit vor. Du arbeitest deshalb auf dem Lernplan statt auf dem
+ausgelieferten Material. Halte dich streng an das, was im Plan steht."""
+        stoff_regeln = """- 10 bis 15 Fragen, über alle Level verteilt. Kein Level ohne Frage.
+- Frage nur ab, was im Curriculum ausformuliert ist — nichts aus eigener
+  Kenntnis ergänzen."""
+
+    return f"""Du bist der Prüfungs-Agent der App „SmartCon-Schulungen". Dein
+Arbeitsverzeichnis ist der Projektordner: {projekt_dir}
+
+{grundlage}
+
+Erstelle daraus die Abschlussprüfung und schreibe sie als maschinenlesbare
+JSON-Datei {projekt_dir / 'pruefung.json'} — exakt in diesem Schema:
+{schema}
+Regeln:
+{stoff_regeln}
+- „optionen“ hat drei bis fünf Einträge. „richtig“ ist der nullbasierte Zeiger
+  auf die richtige Option — genau eine Antwort ist richtig, Mehrfachauswahl
+  gibt es nicht.
+- Die Ablenker müssen plausibel sein: falsche Antworten, die jemand ohne die
+  Schulung für richtig halten könnte. Keine absurden Optionen und keine, die
+  sich schon durch ihre Länge verraten.
+- „thema“ nennt das Level, auf das sich die Frage bezieht („Level 3“).
+- „hinweis“ ist ein Satz Begründung, der nach der Auswertung gezeigt wird.
+- „bestehensgrenze“ ist {bestehensgrenze}.
+- Frage nach Verständnis, nicht nach Wortlaut.
+- Alles auf Deutsch, mit korrekten Umlauten.
+- Die Datei enthält NUR das JSON: kein Kommentar, kein Markdown, keine Code-Zäune.
+
+Stelle keine Rückfragen. Beende den Lauf mit einer Zeile: Anzahl der Fragen
+und die abgedeckten Level."""

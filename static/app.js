@@ -3,10 +3,21 @@
 // Tabs
 document.querySelectorAll(".tab").forEach((btn) => {
   btn.addEventListener("click", () => {
+    const vorherAktiv = document.querySelector(".tab.aktiv")?.dataset.tab;
     document.querySelectorAll(".tab").forEach((b) => b.classList.remove("aktiv"));
     document.querySelectorAll(".view").forEach((v) => v.classList.remove("aktiv"));
     btn.classList.add("aktiv");
     document.getElementById("view-" + btn.dataset.tab).classList.add("aktiv");
+    // Weg von „decks": offener SSE-Stream und Poll-Timer der Deck-Detailansicht
+    // sonst laufen im Hintergrund weiter, auch wenn kein Deck mehr sichtbar ist.
+    if (vorherAktiv === "decks" && btn.dataset.tab !== "decks") {
+      if (deckQuelle) { deckQuelle.close(); deckQuelle = null; }
+      if (deckTimer) { clearInterval(deckTimer); deckTimer = null; }
+    }
+    if (btn.dataset.tab === "decks") {
+      deckPanel("dv-liste");
+      ladeDecks();
+    }
   });
 });
 
@@ -70,6 +81,26 @@ document.getElementById("btn-openrouter").addEventListener("click", () => {
   document.querySelector('[name="whisper_api_url"]').value = "https://openrouter.ai/api/v1";
 });
 
+document.getElementById('btn-logo-upload').addEventListener('click', async () => {
+  const feld = document.getElementById('logo-datei');
+  const status = document.getElementById('logo-status');
+  if (!feld.files.length) { status.textContent = 'Keine Datei gewählt.'; return; }
+  const daten = new FormData();
+  daten.append('logo', feld.files[0]);
+  const antwort = await fetch('/api/config/logo', { method: 'POST', body: daten });
+  const ergebnis = await antwort.json();
+  status.textContent = antwort.ok
+    ? `Gespeichert (${ergebnis.groesse} Bytes).`
+    : `Fehler: ${ergebnis.detail}`;
+  ladeAmpel();
+});
+
+document.getElementById('btn-logo-loeschen').addEventListener('click', async () => {
+  await fetch('/api/config/logo', { method: 'DELETE' });
+  document.getElementById('logo-status').textContent = 'Entfernt.';
+  ladeAmpel();
+});
+
 document.getElementById("settings-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = e.target;
@@ -119,10 +150,17 @@ let aktuellerSlug = null;
 let eventQuelle = null;
 let listeTimer = null;
 
-function zeigePanel(id) {
-  ["pv-liste", "pv-formular", "pv-detail"].forEach((p) => {
+// Blendet innerhalb einer Ansicht genau ein Unterpanel ein (Liste/Formular/
+// Detail) und alle anderen aus. Von zeigePanel() (Projekte) und deckPanel()
+// (Präsentationen) genutzt.
+function zeigeUnterpanel(id, panels) {
+  panels.forEach((p) => {
     document.getElementById(p).hidden = p !== id;
   });
+}
+
+function zeigePanel(id) {
+  zeigeUnterpanel(id, ["pv-liste", "pv-formular", "pv-detail"]);
   if (id !== "pv-liste") listePollingStoppen();
 }
 
@@ -147,12 +185,15 @@ async function ladeProjekte() {
     if (data.projekte.some((p) => (p.phase || "").endsWith("_laeuft"))) {
       listeTimer = setTimeout(ladeProjekte, 15000);
     }
-    if (!data.projekte.length) {
+    // Decks haben ihre eigene Liste (ladeDecks()) — sonst öffnet ein Klick
+    // hier den Schulungs-Workflow für einen Präsentationsordner.
+    const projekte = data.projekte.filter((p) => p.art !== "praesentation");
+    if (!projekte.length) {
       box.innerHTML = "<p class='muted'>Noch keine Projekte — „Neue Schulung“ legt das erste an.</p>";
       return;
     }
     box.innerHTML = "";
-    for (const p of data.projekte) {
+    for (const p of projekte) {
       const karte = document.createElement("div");
       karte.className = "projekt-karte";
       const datum = p.geaendert_am ? p.geaendert_am.slice(0, 16).replace("T", " ") : "";
@@ -659,6 +700,7 @@ async function ladeProduktion(projekt) {
     verbrauchTimer = setInterval(aktualisiereVerbrauch, 30000);
   }
   ladeErgebnis(phase);
+  ladePruefung(projekt);
 }
 
 async function aktualisiereVerbrauch() {
@@ -742,3 +784,158 @@ async function ladeErgebnis(phase) {
     liste.appendChild(zeile);
   }
 }
+
+/* ---------- Prüfung ---------- */
+
+const PRUEFUNG_PHASEN = ["fertig", "pruefung_laeuft"];
+
+async function ladePruefung(projekt) {
+  const block = document.getElementById("pruefungsblock");
+  block.hidden = !PRUEFUNG_PHASEN.includes(projekt.status.phase);
+  if (block.hidden || !aktuellerSlug) return;
+
+  const ziel = document.getElementById("pruefung-ergebnis");
+  const res = await fetch(`/api/projekte/${aktuellerSlug}/pruefung`);
+  if (res.status === 404) {
+    ziel.innerHTML = "<p class='muted'>Noch keine Prüfung erzeugt.</p>";
+    return;
+  }
+  const daten = await res.json();
+  if (!res.ok) {
+    ziel.innerHTML = `<p class="muted">Fehler: ${esc(daten.detail)}</p>`;
+    return;
+  }
+  ziel.innerHTML =
+    `<p><strong>${esc(daten.titel)}</strong> — ${daten.fragen.length} Fragen, ` +
+    `bestanden ab ${daten.bestehensgrenze} %.</p>` +
+    `<a class="download" href="/api/projekte/${aktuellerSlug}/pruefung.html">` +
+    `Prüfung als HTML herunterladen</a>`;
+}
+
+document.getElementById("btn-pruefung-start").addEventListener("click", async () => {
+  if (!aktuellerSlug) return;
+  const status = document.getElementById("pruefung-status");
+  const grenze = Number(document.getElementById("bestehensgrenze").value);
+  const res = await fetch(`/api/projekte/${aktuellerSlug}/pruefung`,
+    { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bestehensgrenze: grenze }) });
+  if (!res.ok) {
+    const fehler = await res.json().catch(() => ({}));
+    status.textContent = "Fehler: " + (fehler.detail || res.status);
+    return;
+  }
+  status.textContent = "Wird erzeugt — Fortschritt im Log oben …";
+  document.getElementById("lauf-log").innerHTML = "";
+  sseVerbinden(aktuellerSlug);
+  aktualisiereDetail();
+  ladeProduktion();
+});
+
+// ==========================================================================
+// Präsentationen (Deck-Werkstatt)
+// ==========================================================================
+
+const DECK_PHASEN_LABEL = {
+  praesentation_laeuft: "Präsentation läuft",
+  praesentation_fertig: "fertig",
+  fehler: "Fehler",
+};
+let deckSlug = null;
+let deckQuelle = null;
+let deckTimer = null;
+
+function deckPanel(id) {
+  zeigeUnterpanel(id, ["dv-liste", "dv-formular", "dv-detail"]);
+}
+
+async function ladeDecks() {
+  const antwort = await fetch("/api/projekte");
+  const data = await antwort.json();
+  const decks = data.projekte.filter((p) => p.art === "praesentation");
+  const ziel = document.getElementById("deck-liste");
+  if (!decks.length) {
+    ziel.innerHTML = "<p class='muted'>Noch keine Präsentation erzeugt.</p>";
+    return;
+  }
+  ziel.innerHTML = decks.map((p) => `
+    <button class="karte" data-slug="${esc(p.slug)}">
+      <strong>${esc(p.thema || p.slug)}</strong>
+      <span class="badge">${esc(DECK_PHASEN_LABEL[p.phase] || p.phase)}</span>
+    </button>`).join("");
+  ziel.querySelectorAll("[data-slug]").forEach((el) => {
+    el.addEventListener("click", () => oeffneDeck(el.dataset.slug));
+  });
+}
+
+async function oeffneDeck(slug) {
+  deckSlug = slug;
+  deckPanel("dv-detail");
+  document.getElementById("deck-log").innerHTML = "";
+  await aktualisiereDeck();
+  deckSseVerbinden(slug);
+}
+
+async function aktualisiereDeck() {
+  const antwort = await fetch(`/api/praesentationen/${deckSlug}`);
+  if (!antwort.ok) return;
+  const stand = await antwort.json();
+  document.getElementById("deck-titel").textContent = stand.thema || deckSlug;
+  document.getElementById("deck-badge").textContent =
+    DECK_PHASEN_LABEL[stand.phase] || stand.phase;
+
+  const ziel = document.getElementById("deck-dateien");
+  ziel.innerHTML = stand.dateien.length
+    ? "<h3>Ergebnis</h3>" + stand.dateien.map((d) => `
+        <a class="download" href="/api/praesentationen/${encodeURIComponent(deckSlug)}/datei/${encodeURIComponent(d.name)}">
+          ${esc(d.name)} <span class="muted">${fmtGroesse(d.groesse)}</span></a>`).join("")
+    : "";
+
+  if (stand.laeuft) {
+    if (!deckTimer) deckTimer = setInterval(aktualisiereDeck, 5000);
+  } else if (deckTimer) {
+    clearInterval(deckTimer);
+    deckTimer = null;
+  }
+}
+
+function deckSseVerbinden(slug) {
+  if (deckQuelle) deckQuelle.close();
+  deckQuelle = new EventSource(`/api/projekte/${encodeURIComponent(slug)}/events`);
+  const log = document.getElementById("deck-log");
+  deckQuelle.onmessage = (e) => {
+    const ereignis = JSON.parse(e.data);
+    const zeile = document.createElement("p");
+    zeile.textContent = ereignis.text || `${ereignis.typ}: ${ereignis.tool || ""}`;
+    log.appendChild(zeile);
+    log.scrollTop = log.scrollHeight;
+    if (ereignis.typ === "fertig" || ereignis.typ === "fehler") {
+      // api_events schließt den Stream nach dem Replay, wenn kein Lauf mehr
+      // aktiv ist — ohne dieses close() reconnectet EventSource alle paar
+      // Sekunden von selbst und spielt events.jsonl endlos neu ein.
+      if (ereignis.typ === "fertig") aktualisiereDeck();
+      deckQuelle.close();
+    }
+  };
+}
+
+document.getElementById("btn-deck-neu").addEventListener("click", () => deckPanel("dv-formular"));
+document.getElementById("btn-deck-form-zurueck").addEventListener("click", () => deckPanel("dv-liste"));
+document.getElementById("btn-deck-zurueck").addEventListener("click", () => {
+  if (deckQuelle) deckQuelle.close();
+  if (deckTimer) { clearInterval(deckTimer); deckTimer = null; }
+  deckPanel("dv-liste");
+  ladeDecks();
+});
+
+document.getElementById("deck-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const status = document.getElementById("deck-form-status");
+  status.textContent = "Wird angelegt …";
+  const antwort = await fetch("/api/praesentationen",
+    { method: "POST", body: new FormData(e.target) });
+  const ergebnis = await antwort.json();
+  if (!antwort.ok) { status.textContent = `Fehler: ${ergebnis.detail}`; return; }
+  status.textContent = "";
+  e.target.reset();
+  oeffneDeck(ergebnis.slug);
+});

@@ -13,7 +13,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, curriculum, higgsfield, preflight, projekte, prompts, runner
+from . import config, curriculum, higgsfield, praesentation, preflight, projekte, prompts, pruefung, runner
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / "static"
@@ -37,6 +37,25 @@ async def api_config_post(cfg: dict):
     return config.save(cfg)
 
 
+@app.post("/api/config/logo")
+async def api_config_logo(logo: UploadFile = File(...)):
+    """Haus-Logo hinterlegen (PNG). Ersetzt ein vorhandenes."""
+    daten = await logo.read()
+    if not daten:
+        raise HTTPException(400, "Leere Datei")
+    try:
+        config.logo_speichern(daten)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "groesse": len(daten)}
+
+
+@app.delete("/api/config/logo")
+def api_config_logo_loeschen():
+    config.logo_loeschen()
+    return {"ok": True}
+
+
 # --- Projekte -------------------------------------------------------------
 
 @app.get("/api/projekte")
@@ -55,6 +74,22 @@ def _projekt_oder_404(slug: str) -> dict:
     if p is None:
         raise HTTPException(404, f"Projekt „{slug}“ nicht gefunden")
     return p
+
+
+def _schulung_oder_409(p: dict) -> None:
+    """Wehrt Schulungs-Phasen-Endpunkte für Präsentationsprojekte ab.
+
+    Ohne diese Prüfung öffnet die Detailansicht eines Decks (ladeDecks()
+    listet nur nach art gefiltert, die Projektliste selbst nicht) den
+    Schulungs-Workflow für einen Präsentationsordner — zwei Klicks starten
+    einen Curriculum-Lauf, der art/dateien überschreibt, die der
+    Präsentations-Skill erwartet.
+    """
+    art = p["briefing"].get("art") or projekte.ART_SCHULUNG
+    if art != projekte.ART_SCHULUNG:
+        raise HTTPException(
+            409, "Dieser Endpunkt ist nur für Schulungen — "
+                 f"„{p['slug']}“ ist eine Präsentation")
 
 
 def _default_design_md() -> bytes | None:
@@ -88,6 +123,7 @@ async def api_projekt_neu(
     dauer: str = Form(...),
     stil: str = Form(...),
     ki_medien: str = Form("ja"),
+    folien_einbetten: str = Form("nein"),
     material_hinweise: str = Form(""),
     design_md: UploadFile | None = File(None),
     material: list[UploadFile] = File([]),
@@ -114,6 +150,9 @@ async def api_projekt_neu(
         # Schalter „Higgsfield nutzen Ja/Nein" — Preset kostenlos erzwingt Nein
         "ki_medien": False if stil == "kostenlos"
                      else ki_medien.lower() in ("ja", "true", "1", "on"),
+        # Folien der Stoffquelle als Bilder verwenden statt neue Medien zu
+        # erzeugen — spart Credits und hält Deck und Einheit deckungsgleich.
+        "folien_einbetten": folien_einbetten.lower() in ("ja", "true", "1", "on"),
         "material_hinweise": material_hinweise.strip(),
     }
     dateien = [(f.filename, await f.read()) for f in material if f.filename]
@@ -139,6 +178,7 @@ def api_projekt_loeschen(slug: str):
 @app.post("/api/projekte/{slug}/curriculum/starten")
 def api_curriculum_starten(slug: str):
     p = _projekt_oder_404(slug)
+    _schulung_oder_409(p)
     if runner.laeuft(slug):
         raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
     projekt_dir = projekte.projekt_dir(slug)
@@ -207,7 +247,8 @@ def api_curriculum_lesen(slug: str):
 
 @app.put("/api/projekte/{slug}/curriculum")
 async def api_curriculum_schreiben(slug: str, body: dict):
-    _projekt_oder_404(slug)
+    p = _projekt_oder_404(slug)
+    _schulung_oder_409(p)
     text = body.get("text")
     if not isinstance(text, str):
         raise HTTPException(400, "Feld „text“ fehlt")
@@ -220,6 +261,7 @@ async def api_curriculum_schreiben(slug: str, body: dict):
 async def api_curriculum_kommentar(slug: str, body: dict):
     """Änderungswunsch an den Agenten — setzt die gespeicherte Session fort."""
     p = _projekt_oder_404(slug)
+    _schulung_oder_409(p)
     kommentar = (body.get("kommentar") or "").strip()
     if not kommentar:
         raise HTTPException(400, "Kommentar darf nicht leer sein")
@@ -267,6 +309,7 @@ def api_gate(slug: str):
 def api_kostenplan_starten(slug: str):
     """Startet die Runner-Phase „kostenplan" (Hintergrund) → kosten.json."""
     p = _projekt_oder_404(slug)
+    _schulung_oder_409(p)
     d = projekte.projekt_dir(slug)
     if not (d / "curriculum.md").is_file():
         raise HTTPException(404, "Noch kein curriculum.md vorhanden")
@@ -283,6 +326,69 @@ def api_kostenplan_starten(slug: str):
     return {"ok": True, "phase": projekte.PHASE_KOSTENPLAN_LAEUFT}
 
 
+@app.post("/api/projekte/{slug}/pruefung")
+def api_pruefung_starten(slug: str, body: dict | None = None):
+    """Startet die Prüfungs-Phase → pruefung.json aus der Stoffquelle."""
+    p = _projekt_oder_404(slug)
+    _schulung_oder_409(p)
+    d = projekte.projekt_dir(slug)
+    if not (d / "curriculum.md").is_file():
+        raise HTTPException(404, "Noch kein curriculum.md vorhanden")
+    if runner.laeuft(slug):
+        raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
+
+    grenze = (body or {}).get("bestehensgrenze", 70)
+    if not isinstance(grenze, int) or isinstance(grenze, bool) \
+            or not 1 <= grenze <= 100:
+        raise HTTPException(400, "bestehensgrenze muss zwischen 1 und 100 liegen")
+
+    vorher = p["status"].get("phase", projekte.PHASE_FERTIG)
+    projekte.set_phase(slug, projekte.PHASE_PRUEFUNG_LAEUFT)
+    try:
+        runner.start(slug, "pruefung", prompts.pruefung_prompt(d, grenze),
+                     zurueck_phase=vorher)
+    except runner.LaufAktiv:
+        projekte.set_phase(slug, vorher)
+        raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
+    return {"ok": True, "phase": projekte.PHASE_PRUEFUNG_LAEUFT}
+
+
+@app.get("/api/projekte/{slug}/pruefung")
+def api_pruefung_lesen(slug: str):
+    """Die geprüfte pruefung.json. 400 nennt den Grund im Klartext."""
+    _projekt_oder_404(slug)
+    pfad = projekte.projekt_dir(slug) / "pruefung.json"
+    if not pfad.is_file():
+        raise HTTPException(404, "Noch keine Prüfung erzeugt")
+    try:
+        return pruefung.laden(pfad)
+    except pruefung.PruefungFehler as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/projekte/{slug}/pruefung.html")
+def api_pruefung_html(slug: str):
+    """Die Prüfung als offline lauffähige HTML-Datei."""
+    _projekt_oder_404(slug)
+    d = projekte.projekt_dir(slug)
+    pfad = d / "pruefung.json"
+    if not pfad.is_file():
+        raise HTTPException(404, "Noch keine Prüfung erzeugt")
+    try:
+        daten = pruefung.laden(pfad)
+    except pruefung.PruefungFehler as e:
+        raise HTTPException(400, str(e))
+
+    # Schreibt bei jedem GET neu (Read-Endpunkt mit Nebenwirkung) — bewusst so,
+    # damit die Datei immer den aktuellen Stand von pruefung.json zeigt. Der
+    # Name ist deshalb aus stoffquelle() und der Ergebnis-Liste ausgeschlossen
+    # (siehe pruefung.HTML_DATEINAME): sonst würde ein geöffneter Prüfungsbogen
+    # per mtime zur Stoffquelle der nächsten Prüfung oder als Ergebnis gelistet.
+    ziel = d / pruefung.HTML_DATEINAME
+    ziel.write_text(pruefung.als_html(daten), encoding="utf-8")
+    return FileResponse(ziel, filename=ziel.name, media_type="text/html")
+
+
 @app.post("/api/projekte/{slug}/go")
 async def api_go(slug: str, body: dict | None = None):
     """Freigabe-Gate: optionale Medien-Änderungen einarbeiten, dann freigeben.
@@ -292,6 +398,7 @@ async def api_go(slug: str, body: dict | None = None):
     zuerst ins curriculum.md ein; bei Erfolg setzt der Runner „freigegeben".
     """
     p = _projekt_oder_404(slug)
+    _schulung_oder_409(p)
     d = projekte.projekt_dir(slug)
     if not (d / "curriculum.md").is_file():
         raise HTTPException(404, "Noch kein curriculum.md vorhanden")
@@ -340,6 +447,7 @@ async def api_go(slug: str, body: dict | None = None):
 def api_produktion_starten(slug: str):
     """Startet die Produktion (Teil 2 des Skills) — nur aus Phase „freigegeben"."""
     p = _projekt_oder_404(slug)
+    _schulung_oder_409(p)
     phase = p["status"].get("phase", projekte.PHASE_BRIEFING)
     if phase != projekte.PHASE_FREIGEGEBEN:
         raise HTTPException(
@@ -392,7 +500,8 @@ def _html_datei_oder_404(slug: str, dateiname: str) -> Path:
     """Validiert den Dateinamen und liefert die HTML-Datei im Projektordner."""
     _projekt_oder_404(slug)
     d = projekte.projekt_dir(slug)
-    if not _DATEINAME_RE.match(dateiname) or not dateiname.endswith(".html"):
+    if (not _DATEINAME_RE.match(dateiname) or not dateiname.endswith(".html")
+            or dateiname == pruefung.HTML_DATEINAME):
         raise HTTPException(400, "Ungültiger Dateiname")
     f = d / dateiname
     if not f.is_file() or f.resolve().parent != d.resolve():
@@ -408,7 +517,8 @@ def api_ergebnis_liste(slug: str):
     dateien = [
         {"name": f.name, "groesse": f.stat().st_size,
          "mtime": f.stat().st_mtime}
-        for f in d.glob("*.html") if f.is_file()
+        for f in d.glob("*.html")
+        if f.is_file() and f.name != pruefung.HTML_DATEINAME
     ]
     dateien.sort(key=lambda e: e["mtime"], reverse=True)
     return {"dateien": dateien}
@@ -426,6 +536,96 @@ def api_ergebnis_vorschau(slug: str, dateiname: str):
     """Dieselbe Datei als text/html — zum Ansehen im Browser (neuer Tab)."""
     f = _html_datei_oder_404(slug, dateiname)
     return FileResponse(f, media_type="text/html")
+
+
+# --- Deck-Werkstatt (Präsentationen) ---------------------------------------
+
+PRAESENTATION_QUELLEN_MAX = 20000
+
+
+@app.post("/api/praesentationen", status_code=201)
+async def api_praesentation_neu(
+    thema: str = Form(...),
+    zielgruppe: str = Form(""),
+    lernziele: str = Form(""),
+    vorwissen: str = Form(""),
+    sprache: str = Form("Deutsch"),
+    dauer: str = Form(""),
+    quellen: str = Form(""),
+    material: list[UploadFile] = File([]),
+):
+    """Legt ein Präsentationsprojekt an und startet den Lauf.
+
+    `quellen` ist Freitext, eine Fundstelle je Zeile. Dateien kommen über
+    `material` und gehen der Websuche vor.
+    """
+    if not thema.strip():
+        raise HTTPException(400, "Thema ist ein Pflichtfeld")
+    if len(quellen) > PRAESENTATION_QUELLEN_MAX:
+        raise HTTPException(400, "Die Quellenliste ist zu lang")
+    if config.standard_logo() is None:
+        # Lieber hier abweisen als einen Lauf starten, der am Logo scheitert.
+        raise HTTPException(
+            400, "Kein Haus-Logo hinterlegt — in den Einstellungen hochladen. "
+                 "Der Präsentations-Skill bricht ohne Logo ab.")
+
+    dateien = [(f.filename, await f.read()) for f in material if f.filename]
+    briefing = {
+        "art": projekte.ART_PRAESENTATION,
+        "thema": thema.strip(),
+        "zielgruppe": zielgruppe.strip(),
+        "lernziele": lernziele.strip(),
+        "vorwissen": vorwissen.strip(),
+        "sprache": sprache.strip() or "Deutsch",
+        "dauer": dauer.strip(),
+        "quellen": quellen.strip(),
+    }
+    slug = projekte.create(briefing, material=dateien)
+    d = projekte.projekt_dir(slug)
+
+    projekte.set_phase(slug, projekte.PHASE_PRAESENTATION_LAEUFT)
+    try:
+        runner.start(slug, "praesentation",
+                     praesentation.prompt(d, briefing, config.LOGO_PFAD))
+    except runner.LaufAktiv:
+        projekte.set_phase(slug, projekte.PHASE_FEHLER)
+        raise HTTPException(409, "Für dieses Projekt läuft bereits ein Agent")
+    return {"ok": True, "slug": slug,
+            "phase": projekte.PHASE_PRAESENTATION_LAEUFT}
+
+
+@app.get("/api/praesentationen/{slug}")
+def api_praesentation_stand(slug: str):
+    p = _projekt_oder_404(slug)
+    d = projekte.projekt_dir(slug)
+    dateien = [{"name": f.name, "groesse": f.stat().st_size}
+               for f in praesentation.dateien(d)]
+    return {"slug": slug,
+            "phase": p["status"].get("phase"),
+            "laeuft": runner.laeuft(slug),
+            "thema": p["briefing"].get("thema"),
+            "dateien": dateien,
+            "fertig": bool(dateien) and not runner.laeuft(slug)}
+
+
+@app.get("/api/praesentationen/{slug}/datei/{dateiname}")
+def api_praesentation_download(slug: str, dateiname: str):
+    """Download der erzeugten PowerPoint-Datei.
+
+    Eigene Route statt einer Erweiterung von /ergebnis: Dort ist die
+    Beschränkung auf .html Teil der Prüfung, und eine Route, die je nach
+    Endung anderes zulässt, lädt zum nächsten Schlupfloch ein.
+    """
+    _projekt_oder_404(slug)
+    d = projekte.projekt_dir(slug)
+    if not _DATEINAME_RE.match(dateiname) or not dateiname.endswith(".pptx"):
+        raise HTTPException(400, "Ungültiger Dateiname")
+    f = d / dateiname
+    if not f.is_file() or f.resolve().parent != d.resolve():
+        raise HTTPException(404, f"Datei „{dateiname}“ nicht gefunden")
+    return FileResponse(
+        f, filename=f.name,
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation")
 
 
 @app.get("/")

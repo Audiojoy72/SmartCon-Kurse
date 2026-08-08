@@ -11,6 +11,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from . import config
+
 ROOT = Path(__file__).resolve().parent.parent
 TIMEOUT = 20
 
@@ -76,6 +78,27 @@ Sichtbar sind dort nur die gemounteten Orte: /app/projects/ und die
 Home-Verzeichnisse unter /root/. Ein Pfad ins Repo-Verzeichnis geht ins
 Leere — die Datei also z. B. nach projects/ legen und
 /app/projects/<datei>.md eintragen.""",
+    "logo": """\
+Der Präsentations-Skill bettet das AI-SmartCon-Logo in jede Folie ein und
+bricht ohne Logo bewusst ab, statt einen Ersatz zu erfinden.
+
+Hochladen unter Einstellungen → „Haus-Logo (PNG)". Die Datei liegt danach als
+config-logo.png neben der config.json und wird nicht mitversioniert.
+Vorlage: logo-glow.png aus dem AI-SmartCon-Brand-Kit.""",
+    "praesentation_skill": """\
+Der Präsentations-Skill ist ein Plugin-Skill und wird nicht ins Image kopiert,
+sondern in docker-compose.yml zusätzlich gemountet:
+  $HOME/.claude/plugins/cache/smartcon-skills/praesentation/<version>/skills/smartcon-praesentation
+  → /root/.claude/skills/smartcon-praesentation:ro
+
+Die Mount-Quelle nennt die Plugin-Version fest (aktuell 1.1.0). Aktualisiert
+sich das Plugin auf eine neue Version, existiert der alte Pfad nicht mehr —
+Docker legt dann stillschweigend einen leeren Ordner an, der Container startet
+normal, aber der Skill ist für den Agenten weg. Reparatur:
+1. Aktuelle Version ermitteln:
+   ls $HOME/.claude/plugins/cache/smartcon-skills/praesentation/
+2. Versionssegment in der Mount-Zeile in docker-compose.yml anpassen.
+3. Container neu erstellen:  docker compose up -d""",
     "whisper_api": """\
 Der Dienst muss OpenAI-kompatibel sein und verbose_json mit WORT-Zeitstempeln
 liefern (Segment-Granularität reicht dem Skill nicht — getestet wird hier
@@ -242,6 +265,29 @@ def run_all(cfg: dict) -> list[dict]:
                        "detail": design if ok else f"nicht gefunden: {design}",
                        "hint": "" if ok else "Pfad in den Einstellungen korrigieren",
                        "anleitung": ANLEITUNG["design"]})
+
+    # Präsentations-Skill (Plugin, per Bind-Mount mit fest versionierter
+    # Quelle eingebunden — siehe ANLEITUNG["praesentation_skill"])
+    skill_dir = Path("/root/.claude/skills/smartcon-praesentation")
+    try:
+        skill_da = skill_dir.is_dir() and any(skill_dir.iterdir())
+    except OSError:
+        skill_da = False
+    checks.append({"id": "praesentation_skill", "name": "Präsentations-Skill (smartcon-praesentation)",
+                   "status": "ok" if skill_da else "warn",
+                   "detail": str(skill_dir) if skill_da else "nicht gefunden/leer",
+                   "hint": "" if skill_da else "nur für Präsentations-Läufe nötig — "
+                                                "Plugin-Version in docker-compose.yml prüfen",
+                   "anleitung": ANLEITUNG["praesentation_skill"]})
+
+    # Haus-Logo (optional, aber Pflicht für Präsentationsläufe)
+    logo = config.standard_logo()
+    checks.append({"id": "logo", "name": "Haus-Logo (Präsentationen)",
+                   "status": "ok" if logo else "warn",
+                   "detail": (f"hinterlegt, {len(logo)} Bytes"
+                              if logo else "keins hinterlegt"),
+                   "hint": "" if logo else "nur für Präsentationen nötig",
+                   "anleitung": ANLEITUNG["logo"]})
 
     checks.append({"id": "python", "name": "Python",
                    "status": "ok",

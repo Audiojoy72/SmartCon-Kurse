@@ -1,9 +1,9 @@
 """Level-Parser — liest die Level-Übersicht-Tabelle aus einem curriculum.md.
 
-Gesucht wird die erste Markdown-Tabelle, deren Kopfzeile die Spalten „Level"
-und „Medium" enthält. Tolerant gegen Spaltenreihenfolge, fehlende Spalten
-(liefern dann leere Felder), Groß-/Kleinschreibung und Leerzeichen.
-Kein Match → leere Liste, kein Fehler.
+Gesucht werden alle Markdown-Tabellen, deren Kopfzeile die Spalten „Level"
+und „Medium" enthält — eine Übersicht darf über mehrere Module aufgeteilt sein.
+Tolerant gegen Spaltenreihenfolge, fehlende Spalten (liefern dann leere Felder),
+Groß-/Kleinschreibung und Leerzeichen. Kein Match → leere Liste, kein Fehler.
 """
 
 import re
@@ -31,7 +31,12 @@ def parse_level(curriculum_md: str) -> list[dict]:
     „level" ist die führende Nummer der Level-Spalte als String („1", „2", …).
     Zeilen ohne führende Nummer (z. B. „Ende" / Abschluss-Check) werden
     übersprungen. Ohne passende Tabelle: leere Liste.
+
+    Mehrere Tabellen werden aneinandergehängt (Modul A, Modul B, …); bei
+    doppelter Level-Nummer gewinnt das erste Vorkommen.
     """
+    level: list[dict] = []
+    gesehen: set[str] = set()
     zeilen = curriculum_md.splitlines()
     for i, zeile in enumerate(zeilen):
         if "|" not in zeile:
@@ -49,7 +54,6 @@ def parse_level(curriculum_md: str) -> list[dict]:
             for name in ("level", "lernziel", "medium", "interaktion"):
                 if name in z and name not in idx:
                     idx[name] = j
-        level = []
         for zeile2 in zeilen[i + 2:]:
             if not zeile2.strip().startswith("|"):
                 break  # Ende der Tabelle
@@ -62,14 +66,16 @@ def parse_level(curriculum_md: str) -> list[dict]:
             m = _LEVEL_NR.match(feld("level"))
             if not m:
                 continue  # z. B. die „Ende"-Zeile (Abschluss-Check)
+            if m.group(1) in gesehen:
+                continue
+            gesehen.add(m.group(1))
             level.append({
                 "level": m.group(1),
                 "lernziel": feld("lernziel"),
                 "medium": feld("medium"),
                 "interaktion": feld("interaktion"),
             })
-        return level
-    return []
+    return level
 
 
 def normalisiere_medium(medium: str) -> str:
