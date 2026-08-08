@@ -63,14 +63,27 @@ def starten(teilnahme_id: int) -> int:
 
     Ein Neuladen der Prüfungsseite darf keinen Versuch verbrauchen, deshalb
     zählt ein bereits offener Versuch weiter statt einen zweiten anzulegen.
-    """
-    if bestanden(teilnahme_id):
-        raise VersuchFehler("Diese Prüfung ist bereits bestanden")
 
+    Prüfung und Insert laufen in einer `BEGIN IMMEDIATE`-Transaktion: Ohne
+    das kann ein Doppelklick oder ein zweiter Tab zwischen dem Zählen und dem
+    Insert eine vierte Zeile einschleusen (`db.verbinden()` ist Autocommit,
+    zwei nebenläufige Aufrufe sehen sonst beide `anzahl < 3`, bevor einer von
+    ihnen schreibt). `BEGIN IMMEDIATE` holt den Schreib-Lock sofort, der
+    zweite Aufrufer wartet statt zu raten und scheitert notfalls mit
+    `sqlite3.OperationalError` statt eines dritten Versuchs.
+    """
     conn = db.verbinden()
     try:
+        conn.execute("BEGIN IMMEDIATE")
+        bestanden_zeile = conn.execute(
+            "SELECT * FROM versuch WHERE teilnahme_id = ? AND bestanden = 1 "
+            "ORDER BY beendet_am LIMIT 1", (teilnahme_id,)).fetchone()
+        if bestanden_zeile:
+            raise VersuchFehler("Diese Prüfung ist bereits bestanden")
+
         offen = _offener(conn, teilnahme_id)
         if offen:
+            conn.execute("COMMIT")
             return offen["id"]
         anzahl = conn.execute(
             "SELECT count(*) AS n FROM versuch WHERE teilnahme_id = ?",
@@ -81,32 +94,60 @@ def starten(teilnahme_id: int) -> int:
         cur = conn.execute(
             "INSERT INTO versuch (teilnahme_id, begonnen_am) VALUES (?, ?)",
             (teilnahme_id, _jetzt()))
+        conn.execute("COMMIT")
         return cur.lastrowid
+    except Exception:
+        # BEGIN IMMEDIATE selbst kann mit "database is locked" scheitern,
+        # bevor eine Transaktion offen ist — dann gibt es nichts zurückzu-
+        # rollen, und ein blindes ROLLBACK würde nur "cannot rollback - no
+        # transaction is active" nachwerfen und den eigentlichen Fehler
+        # verdecken.
+        if conn.in_transaction:
+            conn.execute("ROLLBACK")
+        raise
     finally:
         conn.close()
 
 
-def auswerten(versuch_id: int, slug: str, antworten: dict) -> dict:
+def auswerten(versuch_id: int, antworten: dict) -> dict:
     """Wertet die Antworten gegen pruefung.json aus und schließt den Versuch.
+
+    Die Schulung wird aus dem Versuch selbst hergeleitet (über dessen
+    `teilnahme_id` → `teilnahme.slug`), nicht vom Aufrufer entgegengenommen.
+    Ein Aufrufer, der die Slug aus der URL und die Versuchs-ID aus einem
+    Formularfeld nimmt, könnte sonst versehentlich einen Versuch von Kurs A
+    gegen die Prüfung von Kurs B auswerten lassen — mit niedrigerer
+    Bestehensgrenze oder weniger Fragen — und das Ergebnis würde trotzdem
+    Kurs A gutgeschrieben. Mit der Herleitung aus der eigenen Teilnahme ist
+    das strukturell ausgeschlossen.
 
     `antworten` bildet den Fragenindex als String auf die gewählte Option ab —
     so kommt es aus einem Formular. Fehlende, unbekannte oder unsinnige Werte
     zählen als falsch; ein Formular ohne Antwort darf nicht abstürzen.
-    """
-    d = projekte.projekt_dir(slug)
-    if d is None:
-        raise VersuchFehler(f"Schulung „{slug}“ nicht gefunden")
-    daten = pruefung.laden(d / "pruefung.json")
-    fragen = daten["fragen"]
 
+    Prüfung und Update laufen in einer `BEGIN IMMEDIATE`-Transaktion — sonst
+    könnten zwei gleichzeitige Submits für denselben Versuch beide die
+    "noch offen"-Prüfung passieren und beide auswerten; das letzte UPDATE
+    gewinnt und das andere Ergebnis verschwindet kommentarlos.
+    """
     conn = db.verbinden()
     try:
-        zeile = conn.execute("SELECT * FROM versuch WHERE id = ?",
-                             (versuch_id,)).fetchone()
+        conn.execute("BEGIN IMMEDIATE")
+        zeile = conn.execute(
+            "SELECT v.*, t.slug AS slug FROM versuch v "
+            "JOIN teilnahme t ON t.id = v.teilnahme_id "
+            "WHERE v.id = ?", (versuch_id,)).fetchone()
         if zeile is None:
             raise VersuchFehler("Versuch nicht gefunden")
         if zeile["beendet_am"] is not None:
             raise VersuchFehler("Dieser Versuch ist bereits abgeschlossen")
+
+        slug = zeile["slug"]
+        d = projekte.projekt_dir(slug)
+        if d is None:
+            raise VersuchFehler(f"Schulung „{slug}“ nicht gefunden")
+        daten = pruefung.laden(d / "pruefung.json")
+        fragen = daten["fragen"]
 
         rueckmeldung = []
         treffer = 0
@@ -133,9 +174,19 @@ def auswerten(versuch_id: int, slug: str, antworten: dict) -> dict:
             "UPDATE versuch SET beendet_am = ?, prozent = ?, bestanden = ? "
             "WHERE id = ?",
             (_jetzt(), prozent, 1 if geschafft else 0, versuch_id))
+        conn.execute("COMMIT")
 
         return {"prozent": prozent, "bestanden": geschafft, "treffer": treffer,
                 "gesamt": len(fragen), "grenze": daten["bestehensgrenze"],
                 "rueckmeldung": rueckmeldung}
+    except Exception:
+        # BEGIN IMMEDIATE selbst kann mit "database is locked" scheitern,
+        # bevor eine Transaktion offen ist — dann gibt es nichts zurückzu-
+        # rollen, und ein blindes ROLLBACK würde nur "cannot rollback - no
+        # transaction is active" nachwerfen und den eigentlichen Fehler
+        # verdecken.
+        if conn.in_transaction:
+            conn.execute("ROLLBACK")
+        raise
     finally:
         conn.close()
