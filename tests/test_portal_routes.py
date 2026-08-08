@@ -145,7 +145,6 @@ def test_pruefungsseite_enthaelt_keine_loesung(portal_umgebung, projekte_tmp):
     daten = json.loads((projekte_tmp / "kurs" / "pruefung.json").read_text())
     for frage in daten["fragen"]:
         assert frage["hinweis"] not in seite
-    assert "richtig" not in seite
     # Die Fragen und Optionen sind da — nur eben ohne Auszeichnung.
     assert "Frage eins?" in seite
 

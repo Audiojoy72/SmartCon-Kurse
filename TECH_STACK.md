@@ -23,11 +23,22 @@ Stand 2026-08-01. Verbindliches Pflichtenheft: [SPEC.md](SPEC.md).
 | `curriculum.py` | Level-Parser für das Freigabe-Gate (Markdown-Tabelle → Medium-Dropdowns) |
 | `higgsfield.py` | Guthaben-Abfrage mit 60-s-Cache |
 | `config.py` | `config.json` laden/speichern (gitignored, enthält Zugangsdaten) |
+| `pruefung.py` | Prüfungsschema laden/validieren, offline lauffähige Prüfungs-HTML |
+| `folien.py` | Folien der Stoffquelle als Bilder für die Produktion aufbereiten |
+| `praesentation.py` | Prompt und Dateiverwaltung für die Deck-Werkstatt (Präsentationen) |
+| `db.py` | SQLite-Ablage der Kursverwaltung (`data/kurse.db`): Schema, Verbindung |
+| `zugang.py` | Passwörter (scrypt), Sitzungstoken — ohne Datenbank- oder HTTP-Bezug |
+| `teilnehmer.py` | Teilnehmer, Teilnahmen, Freischaltung, Anmeldung, Sitzungsprüfung |
+| `versuche.py` | Prüfungsversuche zählen, auswerten, gegen `pruefung.json` prüfen |
+| `verwaltung.py` | `/api/verwaltung/…`-Routen: Teilnehmer anlegen, zuordnen, freischalten |
+| `portal.py` | HTML-Seiten des Teilnehmer-Portals (reine Funktionen, kein Server) |
+| `portal_routes.py` | `/portal/…`-Routen: Login, Kursliste, Lerneinheit, Prüfung, Zertifikat |
 
 **Dependencies** (`requirements.txt`, gepinnt): `fastapi==0.141.1`,
 `uvicorn==0.52.0`, `python-multipart==0.0.32` (Uploads). Laufzeit Python 3.11
-(`python:3.11-slim` im Dockerfile). Keine Datenbank — alles liegt als Dateien im
-Dateisystem (`config.json`, `projects/<slug>/`).
+(`python:3.11-slim` im Dockerfile). Schulungsinhalte liegen als Dateien im
+Dateisystem (`config.json`, `projects/<slug>/`); die Kursverwaltung (Teilnehmer,
+Zugänge, Prüfungsversuche) liegt in `data/kurse.db` (SQLite, gitignored).
 
 ## Frontend (`static/`)
 

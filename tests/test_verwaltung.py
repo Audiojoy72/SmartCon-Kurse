@@ -60,6 +60,36 @@ def test_teilnahme_zuordnen(verwaltung):
     assert eintrag["teilnahmen"][0]["slug"] == "ki-pflichtschulung"
 
 
+def test_teilnahme_zu_unfertiger_schulung_ist_400(verwaltung, projekte_tmp):
+    """Minor: Frontend filtert phase === 'fertig' — die API muss das auch."""
+    d = projekte_tmp / "laeuft-noch"
+    d.mkdir()
+    (d / "brief.json").write_text(json.dumps({"thema": "Läuft noch"}))
+    (d / "pruefung.json").write_text(json.dumps(PRUEFUNG), encoding="utf-8")
+    (d / "status.json").write_text(json.dumps({"phase": "produktion_laeuft"}))
+
+    tid = verwaltung.post("/api/verwaltung/teilnehmer",
+                          json={"email": "anna@example.org", "name": "Anna"}).json()["id"]
+    antwort = verwaltung.post(f"/api/verwaltung/teilnehmer/{tid}/teilnahme",
+                              json={"slug": "laeuft-noch"})
+    assert antwort.status_code == 400
+
+
+def test_teilnahme_zu_praesentation_ist_400(verwaltung, projekte_tmp):
+    """Minor: Frontend filtert art !== 'praesentation' — die API muss das auch."""
+    d = projekte_tmp / "deck"
+    d.mkdir()
+    (d / "brief.json").write_text(json.dumps({"thema": "Deck", "art": "praesentation"}))
+    (d / "pruefung.json").write_text(json.dumps(PRUEFUNG), encoding="utf-8")
+    (d / "status.json").write_text(json.dumps({"phase": "fertig"}))
+
+    tid = verwaltung.post("/api/verwaltung/teilnehmer",
+                          json={"email": "anna@example.org", "name": "Anna"}).json()["id"]
+    antwort = verwaltung.post(f"/api/verwaltung/teilnehmer/{tid}/teilnahme",
+                              json={"slug": "deck"})
+    assert antwort.status_code == 400
+
+
 def test_teilnahme_zu_unbekannter_schulung_ist_404(verwaltung):
     tid = verwaltung.post("/api/verwaltung/teilnehmer",
                           json={"email": "anna@example.org", "name": "Anna"}).json()["id"]

@@ -48,19 +48,27 @@ def api_teilnehmer_neu(body: dict):
 
 @router.post("/teilnehmer/{tid}/teilnahme", status_code=201)
 def api_teilnahme_neu(tid: int, body: dict):
-    """Ordnet dem Teilnehmer eine fertige Schulung zu."""
+    """Ordnet dem Teilnehmer eine fertige Schulung zu.
+
+    Spiegelt die Filter des Frontends (`art !== 'praesentation' && phase ===
+    'fertig'`) serverseitig — sonst ließe sich über einen direkten API-Aufruf
+    eine unfertige Schulung oder eine Präsentation zuordnen.
+    """
     slug = str(body.get("slug", "")).strip()
-    d = projekte.projekt_dir(slug)
-    if d is None:
+    p = projekte.get(slug)
+    if p is None:
         raise HTTPException(404, f"Schulung „{slug}“ nicht gefunden")
+    if (p["briefing"].get("art") or projekte.ART_SCHULUNG) != projekte.ART_SCHULUNG:
+        raise HTTPException(400, f"„{slug}“ ist eine Präsentation, keine Schulung")
+    if p["status"].get("phase") != projekte.PHASE_FERTIG:
+        raise HTTPException(400, f"„{slug}“ ist noch nicht fertig")
+    d = projekte.projekt_dir(slug)
     if not (d / "pruefung.json").is_file():
         raise HTTPException(
             400, "Für diese Schulung gibt es noch keine Prüfung — erst im "
                  "Projekt „Prüfung erzeugen“ starten")
 
-    p = projekte.get(slug)
-    titel = (p["briefing"].get("thema") or slug) if p else slug
-    # Mit Prüfung heißt der Nachweis Zertifikat, sonst Teilnahmebestätigung.
+    titel = p["briefing"].get("thema") or slug
     nachweis = "AI-SmartCon-Zertifikat"
     try:
         tnid = teilnehmer.teilnahme_anlegen(tid, slug, titel, nachweis)

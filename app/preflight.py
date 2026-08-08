@@ -11,7 +11,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import config
+from . import config, db
 
 ROOT = Path(__file__).resolve().parent.parent
 TIMEOUT = 20
@@ -180,8 +180,6 @@ def _check_binary(check_id: str, name: str, cmd: list[str], pflicht: bool,
 
 def _portal_check() -> dict:
     """Zustand der Kursverwaltung: Datenbank lesbar, mit Zahlen als Detail."""
-    from . import db
-
     base = {"id": "portal", "name": "Teilnehmer-Portal (Kursverwaltung)",
             "anleitung": ANLEITUNG["portal"]}
     if not db.DB_PFAD.exists():
