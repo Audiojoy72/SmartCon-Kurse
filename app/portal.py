@@ -270,9 +270,12 @@ _DRUCK = """
   @media print {
     body { background: #fff; color: #111; padding: 0; }
     .kopf, .nicht-drucken { display: none; }
-    .urkunde { border: 2px solid #c9a84c; page-break-inside: avoid; }
+    .urkunde {
+      background: #fff; border: 2px solid #c9a84c; page-break-inside: avoid;
+    }
     .urkunde h1, .urkunde .name { color: #111; }
     .urkunde .muted { color: #444; }
+    .urkunde .thema { color: #7a5e16; }
   }
 """
 
