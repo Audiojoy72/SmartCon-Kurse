@@ -16,18 +16,19 @@ import secrets
 # wird am Telefon vorgelesen und von Hand abgetippt.
 ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
 
-# n = 2**14 braucht rund 16 MB Arbeitsspeicher und wenige Millisekunden —
-# genug gegen Ausprobieren, wenig genug für einen Login ohne Wartezeit. Der
-# Wert steht im Hash, ältere Passwörter bleiben also prüfbar, wenn er steigt.
-SCRYPT_N = 2**14
-SCRYPT_R = 8
+# n = 2**15, r = 4: ~25 ms pro Hash auf dieser Maschine. Erhöht die Kosten
+# gegen Ausprobieren weit über den Altbestand hinaus, während die Zeit
+# akzeptabel bleibt. Der Wert steht im Hash, ältere Passwörter bleiben also
+# prüfbar, wenn er steigt. (2**17 nicht möglich: Speicherlimit des Systems.)
+SCRYPT_N = 2**15
+SCRYPT_R = 4
 SCRYPT_P = 1
 SALZ_LAENGE = 16
 SCHLUESSEL_LAENGE = 32
 
 
 def passwort_erzeugen(laenge: int = 12) -> str:
-    """Ein neues Passwort. 12 Zeichen aus diesem Alphabet sind rund 71 Bit."""
+    """Ein neues Passwort. 12 Zeichen aus diesem Alphabet sind rund 70 Bit."""
     return "".join(secrets.choice(ALPHABET) for _ in range(laenge))
 
 
@@ -47,6 +48,11 @@ def passwort_pruefen(passwort: str, hinterlegt: str) -> bool:
     Teilnehmer ohne Freischaltung hat noch keinen Hash, und ein Login-Versuch
     darf daran nicht mit einem Serverfehler enden.
     """
+    # Typ-Sicherung am Eintritt: Das Vertrauen auf die Signatur beim Aufruf
+    # ist in der Praxis nicht genug (None aus Datenbank, fehlende Formfelder).
+    if not isinstance(passwort, str) or not isinstance(hinterlegt, str):
+        return False
+
     try:
         kennung, n, r, p, salz_hex, hash_hex = hinterlegt.split("$")
         if kennung != "scrypt":

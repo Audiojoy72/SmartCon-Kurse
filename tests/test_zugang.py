@@ -48,6 +48,19 @@ def test_leerer_hash_ergibt_false_statt_fehler():
     assert zugang.passwort_pruefen("egal", "scrypt$nicht$zahlen$x$y$z") is False
 
 
+def test_none_passwort_ergibt_false_statt_fehler():
+    # Regression: None aus fehlendem Formfeld oder Datenbank darf nicht zu
+    # AttributeError führen.
+    h = zugang.passwort_hashen("geheim")
+    assert zugang.passwort_pruefen(None, h) is False  # type: ignore
+
+
+def test_none_hash_ergibt_false_statt_fehler():
+    # Regression: None aus fehlender Datenbankfreischaltung darf nicht zu
+    # AttributeError führen.
+    assert zugang.passwort_pruefen("egal", None) is False  # type: ignore
+
+
 def test_token_klartext_und_hash_gehoeren_zusammen():
     klartext, gehasht = zugang.token_erzeugen()
     assert zugang.token_hashen(klartext) == gehasht
