@@ -89,6 +89,14 @@ def test_das_ergebnis_nennt_die_richtige_antwort_erst_hinterher(umgebung):
     assert rueckmeldung[0]["hinweis"] == "Weil a."
 
 
+def test_rueckmeldung_traegt_das_thema(umgebung):
+    """portal.ergebnis_seite braucht das Thema, um schwache Themen zu nennen
+    (Decision: Begründung erst beim letzten Versuch)."""
+    vid = versuche.starten(umgebung)
+    ergebnis = versuche.auswerten(vid, {"0": 1, "1": 1, "2": 2, "3": 0})
+    assert ergebnis["rueckmeldung"][0]["thema"] == "Level 1"
+
+
 def test_versuch_wird_gespeichert(umgebung):
     vid = versuche.starten(umgebung)
     versuche.auswerten(vid, {"0": 0, "1": 1, "2": 2, "3": 0})

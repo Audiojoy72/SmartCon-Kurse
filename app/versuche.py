@@ -163,9 +163,14 @@ def auswerten(versuch_id: int, antworten: dict) -> dict:
             rueckmeldung.append({
                 "frage": frage["frage"],
                 "gewaehlt": gewaehlt,
+                # Bleibt im Rückgabewert, damit portal.ergebnis_seite die
+                # richtige Antwort erst nach dem letzten Versuch zeigen kann.
+                # Wer dieses Dict je aus einer JSON-Route zurückgibt, verrät
+                # die Lösung — nur die HTML-Seite darf es auslesen.
                 "richtig": frage["richtig"],
                 "korrekt": korrekt,
                 "hinweis": str(frage.get("hinweis", "")),
+                "thema": str(frage.get("thema", "")),
             })
 
         prozent = round(treffer / len(fragen) * 100)

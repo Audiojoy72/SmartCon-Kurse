@@ -100,6 +100,30 @@ def test_ergebnisseite_zeigt_prozent_und_urteil():
     assert "Weil a." in html
 
 
+def test_ergebnisseite_verschweigt_die_begruendung_solange_versuche_bleiben():
+    """Decision: Begründungen nennen die richtige Antwort — ein zweiter
+    Versuch darf keine Abschreibübung sein. Stattdessen die schwachen Themen."""
+    ergebnis = {"prozent": 40, "bestanden": False, "treffer": 2, "gesamt": 5,
+                "grenze": 70, "rueckmeldung": [
+                    {"frage": "F1?", "gewaehlt": 1, "richtig": 0, "korrekt": False,
+                     "hinweis": "Weil b richtig ist.", "thema": "Level 1"},
+                    {"frage": "F2?", "gewaehlt": 1, "richtig": 1, "korrekt": True,
+                     "hinweis": "Weil b richtig ist.", "thema": "Level 2"}]}
+    html = portal.ergebnis_seite(TEILNAHME, ergebnis, weitere_versuche=2)
+    assert "Weil b richtig ist." not in html
+    assert "Level 1" in html
+    assert "Level 2" not in html  # nur Themen der falschen Antworten
+
+
+def test_ergebnisseite_zeigt_die_begruendung_beim_letzten_versuch():
+    ergebnis = {"prozent": 40, "bestanden": False, "treffer": 2, "gesamt": 5,
+                "grenze": 70, "rueckmeldung": [
+                    {"frage": "F1?", "gewaehlt": 1, "richtig": 0, "korrekt": False,
+                     "hinweis": "Weil a richtig ist.", "thema": "Level 1"}]}
+    html = portal.ergebnis_seite(TEILNAHME, ergebnis, weitere_versuche=0)
+    assert "Weil a richtig ist." in html
+
+
 def test_ergebnisseite_nennt_die_restversuche_bei_nichtbestehen():
     ergebnis = {"prozent": 40, "bestanden": False, "treffer": 2, "gesamt": 5,
                 "grenze": 70, "rueckmeldung": []}

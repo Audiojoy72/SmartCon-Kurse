@@ -232,15 +232,37 @@ def pruefung_seite(teilnahme: dict, fragen: list[dict], versuch_nr: int,
 
 
 def ergebnis_seite(teilnahme: dict, ergebnis: dict, weitere_versuche: int) -> str:
-    """Die Auswertung samt Begründung je Frage."""
+    """Die Auswertung. Begründungen nur, wenn kein weiterer Versuch mehr zählt.
+
+    Sonst wäre ein zweiter Anlauf nur eine Abschreibübung: die Begründungen
+    aus pruefung.json nennen ja gerade die richtige Antwort (z. B. „Weil b
+    richtig ist."). Solange noch Versuche offen sind, gibt es stattdessen nur
+    Note und die Themen der falsch beantworteten Fragen — nützlich zum Lernen,
+    ohne die Lösung herzugeben.
+    """
+    zeige_begruendung = ergebnis["bestanden"] or weitere_versuche == 0
     zeilen = []
+    schwache_themen: list[str] = []
     for nr, r in enumerate(ergebnis["rueckmeldung"], start=1):
         klasse = "korrekt" if r["korrekt"] else "falsch"
         urteil = "Richtig." if r["korrekt"] else "Nicht richtig."
+        begruendung = ""
+        if zeige_begruendung:
+            begruendung = f" {_html.escape(str(r['hinweis']))}"
+        elif not r["korrekt"]:
+            thema = str(r.get("thema", "")).strip()
+            if thema and thema not in schwache_themen:
+                schwache_themen.append(thema)
         zeilen.append(f"""    <div class="karte {klasse}">
       <p><strong>{nr}. {_html.escape(str(r["frage"]))}</strong></p>
-      <p class="muted">{urteil} {_html.escape(str(r["hinweis"]))}</p>
+      <p class="muted">{urteil}{begruendung}</p>
     </div>""")
+
+    themen_hinweis = ""
+    if schwache_themen:
+        themen_liste = ", ".join(_html.escape(t) for t in schwache_themen)
+        themen_hinweis = (f'\n    <p class="muted">Noch unsicher bei: '
+                          f'{themen_liste}.</p>')
 
     tnid = int(teilnahme["id"])
     if ergebnis["bestanden"]:
@@ -262,7 +284,7 @@ def ergebnis_seite(teilnahme: dict, ergebnis: dict, weitere_versuche: int) -> st
   <div class="karte">
     <p class="note">{ergebnis["prozent"]} %</p>
     <p>{ergebnis["treffer"]} von {ergebnis["gesamt"]} Fragen richtig,
-      bestanden ab {ergebnis["grenze"]} %.</p>
+      bestanden ab {ergebnis["grenze"]} %.</p>{themen_hinweis}
 {weiter}
   </div>
   <h2>Im Einzelnen</h2>
