@@ -67,6 +67,11 @@ def verbinden() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
+    # Explizit statt dem sqlite3-Default (5000 ms) überlassen — der Wert
+    # entscheidet mitten in einer Prüfung zwischen kurzem Warten und einer
+    # Fehlerseite und soll nicht heimlich verschwinden, wenn jemand künftig
+    # timeout=0 an connect() übergibt.
+    conn.execute("PRAGMA busy_timeout = 5000")
     return conn
 
 

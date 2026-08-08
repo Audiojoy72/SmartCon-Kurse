@@ -115,6 +115,17 @@ nur die Erreichbarkeit über GET <url>/models).
    faster-whisper-large-v3, Systran/faster-whisper-large-v3).
 
 Alle Werte stehen nur in der lokalen config.json (gitignored).""",
+    "portal": """\
+Die Kursverwaltung legt ihre Daten in data/kurse.db ab — Teilnehmer, Zugänge
+und Prüfungsversuche.
+
+Fehlt die Datei, wurde noch kein Teilnehmer angelegt; die App erzeugt sie beim
+ersten Start selbst. Im Docker-Betrieb muss der Ordner vorher existieren,
+sonst legt Docker ihn als root an:
+  mkdir -p data && docker compose up -d
+
+Die Datei enthält Kundendaten. Sie gehört ins Backup und nie ins Repo:
+  sqlite3 data/kurse.db ".backup data/kurse-$(date +%F).db\"""",
 }
 
 
@@ -165,6 +176,32 @@ def _check_binary(check_id: str, name: str, cmd: list[str], pflicht: bool,
         return {**base, "status": "ok", "detail": first, "hint": ""}
     return {**base, "status": "fail" if pflicht else "warn",
             "detail": first or "Aufruf fehlgeschlagen", "hint": hint}
+
+
+def _portal_check() -> dict:
+    """Zustand der Kursverwaltung: Datenbank lesbar, mit Zahlen als Detail."""
+    from . import db
+
+    base = {"id": "portal", "name": "Teilnehmer-Portal (Kursverwaltung)",
+            "anleitung": ANLEITUNG["portal"]}
+    if not db.DB_PFAD.exists():
+        return {**base, "status": "warn",
+                "detail": "noch nicht angelegt — entsteht beim ersten Teilnehmer",
+                "hint": "nur nötig, wenn Schulungen an Teilnehmer ausgegeben werden"}
+    try:
+        conn = db.verbinden()
+        try:
+            personen = conn.execute(
+                "SELECT count(*) AS n FROM teilnehmer").fetchone()["n"]
+            teilnahmen = conn.execute(
+                "SELECT count(*) AS n FROM teilnahme").fetchone()["n"]
+        finally:
+            conn.close()
+    except Exception as e:  # sqlite3.Error, aber auch ein kaputter Dateiinhalt
+        return {**base, "status": "fail", "detail": f"nicht lesbar: {e}",
+                "hint": "data/kurse.db prüfen oder aus dem Backup zurückholen"}
+    return {**base, "status": "ok",
+            "detail": f"{personen} Teilnehmer, {teilnahmen} Teilnahmen", "hint": ""}
 
 
 def run_all(cfg: dict) -> list[dict]:
@@ -292,5 +329,8 @@ def run_all(cfg: dict) -> list[dict]:
     checks.append({"id": "python", "name": "Python",
                    "status": "ok",
                    "detail": sys.version.split()[0], "hint": "", "anleitung": ""})
+
+    # Kursverwaltung (optional — nur nötig, wenn das Portal genutzt wird)
+    checks.append(_portal_check())
 
     return checks

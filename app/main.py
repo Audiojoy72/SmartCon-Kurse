@@ -7,6 +7,7 @@ import asyncio
 import json
 import queue
 import re
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -18,7 +19,17 @@ from . import config, curriculum, db, higgsfield, portal_routes, praesentation, 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / "static"
 
-app = FastAPI(title="SmartCon-Schulungen", version="0.2.0")
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    # Nicht auf Modulebene: main.py wird auch für die Test-Suite importiert,
+    # ein Aufruf dort würde bei jedem Testlauf die echte data/kurse.db anlegen.
+    # schema_anlegen() ist idempotent — kostet bei jedem Start nichts.
+    db.init()
+    yield
+
+
+app = FastAPI(title="SmartCon-Schulungen", version="0.2.0", lifespan=_lifespan)
 
 app.include_router(verwaltung.router)
 app.include_router(portal_routes.router)
