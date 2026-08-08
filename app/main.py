@@ -13,7 +13,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, curriculum, db, higgsfield, praesentation, preflight, projekte, prompts, pruefung, runner, verwaltung
+from . import config, curriculum, db, higgsfield, portal_routes, praesentation, preflight, projekte, prompts, pruefung, runner, verwaltung
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / "static"
@@ -21,6 +21,7 @@ STATIC = ROOT / "static"
 app = FastAPI(title="SmartCon-Schulungen", version="0.2.0")
 
 app.include_router(verwaltung.router)
+app.include_router(portal_routes.router)
 
 
 @app.get("/api/preflight")
