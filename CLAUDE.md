@@ -59,7 +59,7 @@ projects/       Projektordner je Schulung (gitignored, Nutzdaten)
 data/           SQLite der Kursverwaltung (gitignored, Kundendaten)
 config.json     Einstellungen + Zugangsdaten (gitignored)
 docs/           Screenshots für die README
-SPEC.md         Pflichtenheft (14 Entscheidungen)
+SPEC.md         Pflichtenheft (16 Entscheidungen)
 TECH_STACK.md   Technik-Überblick inkl. „Bekannte Fallen"
 Dockerfile, docker-compose.yml
 ```
@@ -126,6 +126,7 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
 | `app/prompts.py` | alle Arbeitsaufträge an den Agenten |
 | `skill/schulung/SKILL.md` | der 11-Phasen-Workflow (Source of Truth fachlich) |
 | `config.json` | Backend-Wahl, Whisper-API, Keys — niemals committen |
+| `app/portal_routes.py` | alle `/portal`-Routen: Login, Sitzungscookie, Lernen, Prüfung, Zertifikat — der selbstgeschützte zweite Bereich |
 | `SPEC.md` | warum die App so ist, wie sie ist |
 
 ## Notes / Gotchas
