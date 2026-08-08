@@ -1230,13 +1230,20 @@ def starten(teilnahme_id: int) -> int:
         conn.close()
 
 
-def auswerten(versuch_id: int, slug: str, antworten: dict) -> dict:
+def auswerten(versuch_id: int, antworten: dict) -> dict:
     """Wertet die Antworten gegen pruefung.json aus und schließt den Versuch.
 
     `antworten` bildet den Fragenindex als String auf die gewählte Option ab —
     so kommt es aus einem Formular. Fehlende, unbekannte oder unsinnige Werte
     zählen als falsch; ein Formular ohne Antwort darf nicht abstürzen.
+
+    Der Kurs wird aus der Teilnahme des Versuchs abgeleitet, nicht vom
+    Aufrufer übernommen: Sonst könnte eine Route, die den Slug aus der URL
+    nimmt, einen Versuch gegen die Prüfung eines anderen Kurses werten — etwa
+    gegen eine mit niedrigerer Bestehensgrenze — und das Bestehen würde
+    trotzdem der eigenen Teilnahme gutgeschrieben.
     """
+    slug = _slug_des_versuchs(versuch_id)
     d = projekte.projekt_dir(slug)
     if d is None:
         raise VersuchFehler(f"Schulung „{slug}“ nicht gefunden")
