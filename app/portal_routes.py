@@ -119,6 +119,32 @@ def portal_kurs(tnid: int, t: dict = Depends(angemeldet)):
     return HTMLResponse(portal.kurs_seite(t, tn, offen, geschafft))
 
 
+# Die Lerneinheit ist agent-generiert und ihr Input schließt vom Kunden
+# geliefertes Stoffquelle-Material ein — eine Prompt-Injection dort, die zu
+# Skript im HTML wird, könnte sonst (same-origin, kein Login nötig) gegen
+# die Werkstatt-API laufen, z. B. DELETE /api/projekte/<slug> (unwiederherstell-
+# bar, siehe CLAUDE.md). `sandbox` ist keine Option: ohne `allow-same-origin`
+# bräche das laut skill/schulung/SKILL.md vorgeschriebene localStorage für den
+# Fortschritt. Also stattdessen per CSP den Netzwerkzugriff kappen —
+# `connect-src 'none'` ist die tragende Direktive, sie unterbindet
+# fetch/XHR/WebSocket aus der Lerneinheit heraus.
+#
+# `style-src 'unsafe-inline'` steht zusätzlich zur ursprünglich geplanten
+# Direktive da: Ohne sie fällt style-src auf default-src zurück (kein
+# `unsafe-inline` dort) und blockt den kompletten <style>-Block der
+# Lerneinheit — nicht nur einzelne style="…"-Attribute. Live gegen
+# projects/passwort-hygiene-im-team/ geprüft: ohne diese Zeile rendert die
+# Seite mit dem Browser-Default-Stylesheet (Times New Roman, transparenter
+# Hintergrund), das eigentliche Design kommt nie an. Für die Sicherheit ist
+# das ohne Bedeutung — style-src betrifft CSS, keinen Code-Ausführungspfad.
+_LERNEINHEIT_CSP = (
+    "default-src 'self' data: blob:; "
+    "script-src 'unsafe-inline' 'unsafe-eval' data: blob:; "
+    "style-src 'unsafe-inline'; "
+    "connect-src 'none'; form-action 'none'; frame-ancestors 'self'"
+)
+
+
 @router.get("/kurs/{tnid}/datei")
 def portal_kurs_datei(tnid: int, t: dict = Depends(angemeldet)):
     """Die Lerneinheit selbst — rund 3 MB, deshalb mit Cache-Erlaubnis.
@@ -137,7 +163,8 @@ def portal_kurs_datei(tnid: int, t: dict = Depends(angemeldet)):
     if not seiten:
         raise HTTPException(404, "Für diese Schulung liegt keine Lerneinheit vor")
     return FileResponse(seiten[-1], media_type="text/html",
-                        headers={"Cache-Control": "private, max-age=3600"})
+                        headers={"Cache-Control": "private, max-age=3600",
+                                 "Content-Security-Policy": _LERNEINHEIT_CSP})
 
 
 @router.get("/kurs/{tnid}/pruefung", response_class=HTMLResponse)

@@ -106,6 +106,27 @@ def test_lerneinheit_wird_ausgeliefert(portal_umgebung):
     assert "private" in antwort.headers.get("cache-control", "")
 
 
+def test_lerneinheit_traegt_eine_csp_die_netzwerkzugriff_verbietet(portal_umgebung):
+    """Critical 1: same-origin iframe darf nicht die Werkstatt-API erreichen.
+
+    `connect-src 'none'` ist die tragende Direktive — sie unterbindet
+    fetch/XHR/WebSocket aus der agent-generierten Lerneinheit heraus, ohne
+    `sandbox` zu setzen (das würde `allow-same-origin` und damit
+    localStorage kosten).
+    """
+    c = portal_umgebung
+    _anmelden(c, c.anna["email"], c.anna["passwort"])
+    antwort = c.get(f"/portal/kurs/{c.anna['teilnahme']}/datei")
+    csp = antwort.headers.get("content-security-policy", "")
+    assert "connect-src 'none'" in csp
+    assert "form-action 'none'" in csp
+    assert "frame-ancestors 'self'" in csp
+    # Ohne das würde style-src auf default-src zurückfallen (kein
+    # unsafe-inline dort) und den <style>-Block der Lerneinheit komplett
+    # blocken — im Browser gegen eine echte Schulung nachgewiesen.
+    assert "style-src 'unsafe-inline'" in csp
+
+
 def test_pruefungsseite_enthaelt_keine_loesung(portal_umgebung, projekte_tmp):
     """Die wichtigste Zusicherung des Portals.
 
