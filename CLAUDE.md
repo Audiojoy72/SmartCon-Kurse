@@ -23,6 +23,7 @@ Vanilla JS ohne Build, kein DB (Dateisystem), Docker als empfohlener Betrieb.
 ```sh
 # Betrieb (empfohlen)
 touch config-logo.png                             # sonst legt Docker dort ein Verzeichnis an
+mkdir -p data                                    # einmalig, vor dem ersten Start
 docker compose build && docker compose up -d     # App auf Port 8710
 
 # Entwicklung ohne Docker

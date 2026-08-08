@@ -21,6 +21,9 @@ services:
       # "docker compose up" absichern: touch config-logo.png (siehe CLAUDE.md).
       - ./config-logo.png:/app/config-logo.png
       - ./projects:/app/projects
+      # Kursverwaltung: Teilnehmer, Zugänge, Prüfungsversuche. Enthält
+      # Kundendaten und gehört wie config.json nie ins Repo.
+      - ./data:/app/data
       # Anmeldungen (read-write, die CLIs pflegen dort Tokens/Sessions)
       - $HOME/.claude:/root/.claude
       # Plugin-Skills werden von claude -p im Container nicht geladen (siehe
