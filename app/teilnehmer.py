@@ -12,6 +12,13 @@ from . import db, zugang
 
 SITZUNG_STUNDEN = 24
 
+# Fester Dummy-Hash für Login-Versuche mit unbekannter E-Mail: `anmelden()`
+# lässt scrypt auch dann laufen, damit die Antwortzeit nicht verrät, ob die
+# Adresse existiert. Einmal beim Modulimport erzeugt (nicht als Konstante im
+# Quelltext, nicht neu pro Aufruf — beides würde entweder ein festes Timing-
+# Ziel bieten oder die Kosten jedes Logins verdoppeln).
+_DUMMY_PASSWORT_HASH = zugang.passwort_hashen(zugang.passwort_erzeugen())
+
 
 class TeilnehmerFehler(ValueError):
     """Eingabe oder Zustand passt nicht. Die Meldung ist für die Oberfläche."""
@@ -161,7 +168,9 @@ def anmelden(email: str, passwort: str) -> str | None:
     """Prüft die Zugangsdaten und legt eine Sitzung an. None = abgelehnt.
 
     Warum keine Unterscheidung zwischen „unbekannt" und „falsches Passwort":
-    Die Antwort verrät sonst, welche Adressen Kunde sind.
+    Die Antwort verrät sonst, welche Adressen Kunde sind — nicht nur über
+    den Rückgabewert, sondern auch über die Zeit: scrypt läuft deshalb in
+    beiden Fällen, auch wenn die E-Mail nicht existiert.
     """
     try:
         email = _email_normalisieren(email)
@@ -173,7 +182,9 @@ def anmelden(email: str, passwort: str) -> str | None:
         zeile = conn.execute(
             "SELECT id, passwort_hash FROM teilnehmer WHERE email = ?",
             (email,)).fetchone()
-        if zeile is None or not zugang.passwort_pruefen(passwort, zeile["passwort_hash"]):
+        hash_ = zeile["passwort_hash"] if zeile is not None else _DUMMY_PASSWORT_HASH
+        richtig = zugang.passwort_pruefen(passwort, hash_)
+        if zeile is None or not richtig:
             return None
 
         klartext, gehasht = zugang.token_erzeugen()
@@ -189,7 +200,7 @@ def anmelden(email: str, passwort: str) -> str | None:
 
 def sitzung_pruefen(token: str) -> dict | None:
     """Der Teilnehmer zu einem Sitzungstoken, oder None."""
-    if not token:
+    if not isinstance(token, str) or not token:
         return None
     conn = db.verbinden()
     try:
@@ -213,7 +224,7 @@ def sitzung_pruefen(token: str) -> dict | None:
 
 def abmelden(token: str) -> None:
     """Entwertet eine Sitzung. Ein unbekanntes Token ist kein Fehler."""
-    if not token:
+    if not isinstance(token, str) or not token:
         return
     conn = db.verbinden()
     try:

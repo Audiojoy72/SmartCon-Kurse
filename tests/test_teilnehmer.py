@@ -1,6 +1,7 @@
 """Teilnehmer, Teilnahmen, Freischaltung und Anmeldung."""
 
 import sqlite3
+import time
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -196,9 +197,45 @@ def test_anmelden_mit_nicht_string_feldern_crasht_nicht(datenbank):
     assert teilnehmer.anmelden("anna@example.org", None) is None
 
 
+def test_anmelden_braucht_fuer_unbekannte_und_bekannte_email_aehnlich_lang(datenbank):
+    """Sonst verrät die Antwortzeit, welche Adresse existiert.
+
+    zugang.passwort_pruefen() kostet ~200ms scrypt. Bricht anmelden() beim
+    unbekannten Teilnehmer vorzeitig ab, bevor gehasht wird, ist der Login
+    von außen ohne jede Zugangsdaten als Adress-Enumeration missbrauchbar
+    (bekannt: ~200ms, unbekannt: <1ms). Faktor 5 Toleranz, weil Timing-Tests
+    auf einer belasteten Maschine schwanken — das ist immer noch 100x
+    enger als die ursprüngliche Lücke.
+    """
+    tid = teilnehmer.anlegen("anna@example.org", "Anna")
+    teilnehmer.freischalten(tid)
+
+    start = time.perf_counter()
+    teilnehmer.anmelden("anna@example.org", "falsches-passwort")
+    bekannt = time.perf_counter() - start
+
+    start = time.perf_counter()
+    teilnehmer.anmelden("niemand@example.org", "egal")
+    unbekannt = time.perf_counter() - start
+
+    assert unbekannt > bekannt / 5
+
+
 def test_unbekannter_token_ergibt_none(datenbank):
     assert teilnehmer.sitzung_pruefen("erfunden") is None
     assert teilnehmer.sitzung_pruefen("") is None
+
+
+def test_nicht_string_token_ergibt_none_statt_absturz(datenbank):
+    """token.encode() in zugang.token_hashen() erwartet einen str.
+
+    Über Cookies kommt hier laut Starlette immer ein String an, aber die
+    Absicherung soll dieselbe Regel wie bei der E-Mail in anmelden()
+    tragen — ein Aufrufer darf sich nicht auf einen bestimmten Typ
+    verlassen müssen.
+    """
+    assert teilnehmer.sitzung_pruefen(123) is None
+    assert teilnehmer.abmelden(123) is None
 
 
 def test_abmelden_entwertet_den_token(datenbank):
