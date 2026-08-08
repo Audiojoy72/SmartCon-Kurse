@@ -218,3 +218,67 @@ def test_fremde_pruefung_kann_nicht_abgegeben_werden(portal_umgebung):
     antwort = c.post(f"/portal/kurs/{c.bodo['teilnahme']}/pruefung",
                      data=ALLES_RICHTIG)
     assert antwort.status_code == 404
+
+
+def test_pruefung_ohne_projektordner_ist_404(portal_umgebung, projekte_tmp):
+    """Der Projektordner kann verschwunden sein (`DELETE /api/projekte/…`
+    kennt keinen Papierkorb) — die Teilnahme in der Datenbank bleibt.
+    """
+    import shutil
+
+    c = portal_umgebung
+    _anmelden(c, c.anna["email"], c.anna["passwort"])
+    shutil.rmtree(projekte_tmp / "kurs")
+
+    antwort = c.get(f"/portal/kurs/{c.anna['teilnahme']}/pruefung")
+    assert antwort.status_code == 404
+
+
+def test_pruefung_mit_kaputter_datei_ist_409(portal_umgebung, projekte_tmp):
+    c = portal_umgebung
+    _anmelden(c, c.anna["email"], c.anna["passwort"])
+    (projekte_tmp / "kurs" / "pruefung.json").write_text("kein json", encoding="utf-8")
+
+    antwort = c.get(f"/portal/kurs/{c.anna['teilnahme']}/pruefung")
+    assert antwort.status_code == 409
+    assert "nicht zur Verfügung" in antwort.json()["detail"]
+
+
+def test_pruefung_mit_kaputter_datei_verbraucht_keinen_versuch(
+        portal_umgebung, projekte_tmp):
+    from app import versuche
+
+    c = portal_umgebung
+    _anmelden(c, c.anna["email"], c.anna["passwort"])
+    (projekte_tmp / "kurs" / "pruefung.json").write_text("kein json", encoding="utf-8")
+
+    c.get(f"/portal/kurs/{c.anna['teilnahme']}/pruefung")
+    assert versuche.zaehlen(c.anna["teilnahme"]) == 0
+
+
+def test_pruefung_abgeben_mit_kaputter_datei_ist_409(portal_umgebung, projekte_tmp):
+    """Die Datei kann zwischen Start und Abgabe der Prüfung kaputt gehen."""
+    c = portal_umgebung
+    _anmelden(c, c.anna["email"], c.anna["passwort"])
+    c.get(f"/portal/kurs/{c.anna['teilnahme']}/pruefung")
+    (projekte_tmp / "kurs" / "pruefung.json").write_text("kein json", encoding="utf-8")
+
+    antwort = c.post(f"/portal/kurs/{c.anna['teilnahme']}/pruefung",
+                     data=ALLES_RICHTIG)
+    assert antwort.status_code == 409
+    assert "nicht zur Verfügung" in antwort.json()["detail"]
+
+
+def test_secure_cookie_ist_im_produktions_default_an(portal_umgebung, monkeypatch):
+    """Regressionsschutz: Der `client`-Fixture-Test läuft mit abgeschaltetem
+    `portal_secure_cookie` (httpx sendet Secure-Cookies nicht über http
+    zurück). Damit ein umgekippter Produktions-Default nicht unbemerkt
+    bliebe, prüft dieser Test mit dem echten `config.DEFAULTS` direkt gegen
+    den gesetzten `Set-Cookie`-Header.
+    """
+    from app import config
+
+    c = portal_umgebung
+    monkeypatch.setattr(config, "load", lambda: dict(config.DEFAULTS))
+    antwort = _anmelden(c, c.anna["email"], c.anna["passwort"])
+    assert "Secure" in antwort.headers["set-cookie"]

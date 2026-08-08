@@ -47,6 +47,26 @@ def _offen_oder_403(tn: dict) -> dict:
     return tn
 
 
+def _pruefung_laden_oder_fehler(slug: str) -> dict:
+    """pruefung.json einer Teilnahme — oder ein sprechender Fehler.
+
+    Eine Teilnahme kann eine Schulung referenzieren, deren Projektordner
+    inzwischen gelöscht wurde (`DELETE /api/projekte/{slug}` kennt keinen
+    Papierkorb), oder deren pruefung.json defekt ist. Beides ist ein
+    erreichbarer Zustand, kein theoretischer — hier abgefangen, statt den
+    Teilnehmer eine Serverausnahme sehen zu lassen.
+    """
+    d = projekte.projekt_dir(slug)
+    if d is None:
+        raise HTTPException(404, "Schulung nicht gefunden")
+    try:
+        return pruefung.laden(d / "pruefung.json")
+    except pruefung.PruefungFehler:
+        raise HTTPException(
+            409, "Diese Prüfung steht gerade nicht zur Verfügung. Wenden Sie "
+                 "sich an AI-SmartCon.")
+
+
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 def portal_start(request: Request):
@@ -129,13 +149,13 @@ def portal_pruefung(tnid: int, t: dict = Depends(angemeldet)):
     darf. „richtig" und „hinweis" bleiben auf dem Server.
     """
     tn = _offen_oder_403(_teilnahme_oder_404(tnid, t))
+    daten = _pruefung_laden_oder_fehler(tn["slug"])
+
     try:
         versuche.starten(tnid)
     except versuche.VersuchFehler as e:
         raise HTTPException(409, str(e))
 
-    d = projekte.projekt_dir(tn["slug"])
-    daten = pruefung.laden(d / "pruefung.json")
     ohne_loesung = [{"frage": f["frage"], "optionen": f["optionen"],
                      "thema": f.get("thema", "")} for f in daten["fragen"]]
     return HTMLResponse(portal.pruefung_seite(
@@ -158,6 +178,12 @@ async def portal_pruefung_abgeben(tnid: int, request: Request,
         ergebnis = versuche.auswerten(versuch_id, antworten)
     except versuche.VersuchFehler as e:
         raise HTTPException(409, str(e))
+    except pruefung.PruefungFehler:
+        # Der Ordner oder die pruefung.json ist zwischen Start und Abgabe
+        # verschwunden oder kaputt gegangen — siehe _pruefung_laden_oder_fehler.
+        raise HTTPException(
+            409, "Diese Prüfung steht gerade nicht zur Verfügung. Wenden Sie "
+                 "sich an AI-SmartCon.")
 
     offen = max(0, versuche.MAX_VERSUCHE - versuche.zaehlen(tnid))
     return HTMLResponse(portal.ergebnis_seite(tn, ergebnis, offen))
