@@ -16,13 +16,14 @@ import secrets
 # wird am Telefon vorgelesen und von Hand abgetippt.
 ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
 
-# n = 2**15, r = 4: ~25 ms pro Hash auf dieser Maschine. Erhöht die Kosten
-# gegen Ausprobieren weit über den Altbestand hinaus, während die Zeit
-# akzeptabel bleibt. Der Wert steht im Hash, ältere Passwörter bleiben also
-# prüfbar, wenn er steigt. (2**17 nicht möglich: Speicherlimit des Systems.)
-SCRYPT_N = 2**15
-SCRYPT_R = 4
+# OWASP empfiehlt n=2**17, r=8, p=1. Auf dieser Maschine braucht das ~211 ms
+# pro Hash. Der Wert steht im Hash, ältere Passwörter bleiben also prüfbar,
+# wenn er steigt. Das hashlib.scrypt()-Speicherlimit muss explizit gesetzt
+# werden; OpenSSLs Default (32 MiB) reicht nicht.
+SCRYPT_N = 2**17
+SCRYPT_R = 8
 SCRYPT_P = 1
+SCRYPT_MAXMEM = 512 * 1024 * 1024  # 512 MiB für N=2**17, r=8
 SALZ_LAENGE = 16
 SCHLUESSEL_LAENGE = 32
 
@@ -37,7 +38,7 @@ def passwort_hashen(passwort: str) -> str:
     salz = secrets.token_bytes(SALZ_LAENGE)
     abgeleitet = hashlib.scrypt(
         passwort.encode(), salt=salz, n=SCRYPT_N, r=SCRYPT_R, p=SCRYPT_P,
-        dklen=SCHLUESSEL_LAENGE)
+        dklen=SCHLUESSEL_LAENGE, maxmem=SCRYPT_MAXMEM)
     return f"scrypt${SCRYPT_N}${SCRYPT_R}${SCRYPT_P}${salz.hex()}${abgeleitet.hex()}"
 
 
@@ -59,7 +60,8 @@ def passwort_pruefen(passwort: str, hinterlegt: str) -> bool:
             return False
         abgeleitet = hashlib.scrypt(
             passwort.encode(), salt=bytes.fromhex(salz_hex),
-            n=int(n), r=int(r), p=int(p), dklen=len(hash_hex) // 2)
+            n=int(n), r=int(r), p=int(p), dklen=len(hash_hex) // 2,
+            maxmem=SCRYPT_MAXMEM)
     except (ValueError, TypeError):
         return False
     return hmac.compare_digest(abgeleitet.hex(), hash_hex)

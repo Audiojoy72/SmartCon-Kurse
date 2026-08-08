@@ -61,6 +61,15 @@ def test_none_hash_ergibt_false_statt_fehler():
     assert zugang.passwort_pruefen("egal", None) is False  # type: ignore
 
 
+def test_owasp_scrypt_parameter_verifizieren():
+    # Ein mit den aktuellen OWASP-Parametern erstellter Hash muss
+    # verifizierbar sein. Regressiontest für maxmem-Fehler.
+    h = zugang.passwort_hashen("test-passwort")
+    assert h.startswith("scrypt$131072$8$1$")  # N=2**17, R=8, P=1
+    assert zugang.passwort_pruefen("test-passwort", h) is True
+    assert zugang.passwort_pruefen("falsch", h) is False
+
+
 def test_token_klartext_und_hash_gehoeren_zusammen():
     klartext, gehasht = zugang.token_erzeugen()
     assert zugang.token_hashen(klartext) == gehasht
