@@ -137,11 +137,37 @@ def portal_kurs(tnid: int, t: dict = Depends(angemeldet)):
 # Seite mit dem Browser-Default-Stylesheet (Times New Roman, transparenter
 # Hintergrund), das eigentliche Design kommt nie an. Für die Sicherheit ist
 # das ohne Bedeutung — style-src betrifft CSS, keinen Code-Ausführungspfad.
+#
+# `frame-src 'none'; child-src 'none'; object-src 'none'` schließen einen
+# tatsächlichen Umgehungsweg, keinen theoretischen: Ein Skript in der
+# Lerneinheit kann `/static/index.html` (selbst same-origin, ohne jede CSP
+# ausgeliefert) in ein `<iframe>` laden und dann
+# `frame.contentWindow.fetch('/api/projekte/<slug>', {method:'DELETE'})`
+# aufrufen. CSP gilt pro Dokument, und `fetch` läuft im "relevant settings
+# object" des Globals, auf dem es aufgerufen wird — also dem des geframeten
+# Dokuments mit dessen (fehlender) Policy, nicht der des Elternteils.
+# `connect-src 'none'` allein bindet nur das Dokument der Lerneinheit selbst
+# und verhindert diesen Umweg über ein zweites Dokument nicht. Reproduziert
+# im Browser gegen projects/passwort-hygiene-im-team/ — ohne diese drei
+# Direktiven lief der DELETE-Aufruf über das geframete /static/index.html
+# durch. `frame-src`/`child-src` fallen sonst auf `default-src 'self' …`
+# zurück, das Framing wäre also erlaubt; kein Preset erzeugt je ein
+# `<iframe>` (`grep -l "<iframe" projects/*/*.html` ist leer, der Skill
+# erwähnt weder Frames noch Workers), die Direktiven kosten also nichts.
+#
+# Was diese Policy NICHT schließt: `window.open('/static/index.html')` +
+# `postMessage` oder ein direkter Tab-Wechsel sind keine Framing-Vorgänge
+# und damit nicht CSP-gebunden — eine geöffnete Seite bringt ihre eigene
+# (hier: fehlende) Policy mit. Das vollständig zu schließen bräuchte einen
+# restriktiven Header auch auf den Werkstatt- und /static-Antworten selbst,
+# nicht nur auf der Lerneinheit — eine eigene, hier bewusst nicht gemachte
+# Änderung.
 _LERNEINHEIT_CSP = (
     "default-src 'self' data: blob:; "
     "script-src 'unsafe-inline' 'unsafe-eval' data: blob:; "
     "style-src 'unsafe-inline'; "
-    "connect-src 'none'; form-action 'none'; frame-ancestors 'self'"
+    "connect-src 'none'; form-action 'none'; frame-ancestors 'self'; "
+    "frame-src 'none'; child-src 'none'; object-src 'none'"
 )
 
 

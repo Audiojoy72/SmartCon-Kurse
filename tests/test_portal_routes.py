@@ -125,6 +125,15 @@ def test_lerneinheit_traegt_eine_csp_die_netzwerkzugriff_verbietet(portal_umgebu
     # unsafe-inline dort) und den <style>-Block der Lerneinheit komplett
     # blocken — im Browser gegen eine echte Schulung nachgewiesen.
     assert "style-src 'unsafe-inline'" in csp
+    # Ohne diese drei fällt frame-src auf default-src 'self' … zurück: ein
+    # Skript könnte /static/index.html (ohne jede CSP ausgeliefert) framen
+    # und über dessen leere Policy die Werkstatt-API erreichen —
+    # connect-src 'none' bindet nur das eigene Dokument der Lerneinheit,
+    # nicht ein zweites, geframetes. Im Browser als echter Exploit
+    # reproduziert und mit dieser Zeile widerlegt.
+    assert "frame-src 'none'" in csp
+    assert "child-src 'none'" in csp
+    assert "object-src 'none'" in csp
 
 
 def test_pruefungsseite_enthaelt_keine_loesung(portal_umgebung, projekte_tmp):
