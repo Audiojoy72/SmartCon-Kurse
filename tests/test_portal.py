@@ -55,6 +55,20 @@ def test_geschlossene_teilnahme_ist_nicht_verlinkt():
     assert "abgelaufen" in html.lower()
 
 
+def test_geschlossene_aber_bestandene_teilnahme_verlinkt_den_nachweis():
+    """Important 3: sonst gibt es nach Ablauf keinen Weg zum Zertifikat mehr."""
+    zu = {**TEILNAHME, "offen": False, "bestanden": True}
+    html = portal.kursliste(TEILNEHMER, [zu])
+    assert "/portal/kurs/7/zertifikat" in html
+    assert "abgelaufen" in html.lower()
+
+
+def test_geschlossene_und_nicht_bestandene_teilnahme_bleibt_ohne_nachweis():
+    zu = {**TEILNAHME, "offen": False, "bestanden": False}
+    html = portal.kursliste(TEILNEHMER, [zu])
+    assert "/portal/kurs/7/zertifikat" not in html
+
+
 def test_pruefungsseite_zeigt_die_fragen_ohne_loesung():
     html = portal.pruefung_seite(TEILNAHME, FRAGEN, versuch_nr=1, max_versuche=3)
     assert "Seit wann wird Art. 4 durchgesetzt?" in html

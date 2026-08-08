@@ -144,10 +144,16 @@ def kursliste(teilnehmer: dict, teilnahmen: list[dict]) -> str:
       </div>
     </div>""")
             else:
+                nachweis = ""
+                if tn.get("bestanden"):
+                    nachweis = f"""
+      <div class="zeile">
+        <a class="knopf" href="/portal/kurs/{int(tn["id"])}/zertifikat">Nachweis anzeigen</a>
+      </div>"""
                 stuecke.append(f"""    <div class="karte">
       <h2>{titel}</h2>
       <p class="muted">Der Zugang ist abgelaufen. Wenden Sie sich an
-        AI-SmartCon, wenn Sie ihn verlängern möchten.</p>
+        AI-SmartCon, wenn Sie ihn verlängern möchten.</p>{nachweis}
     </div>""")
         karten = "\n".join(stuecke)
 
