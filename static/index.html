@@ -6,7 +6,7 @@
 <title>SmartCon-Schulungen</title>
 <!-- ?v= bei jeder Frontend-Änderung hochzählen — sonst hängt auf dem Handy
      die alte Fassung im Cache und der Fix ist unsichtbar. -->
-<link rel="stylesheet" href="/static/style.css?v=9">
+<link rel="stylesheet" href="/static/style.css?v=10">
 </head>
 <body>
 <header>
@@ -14,6 +14,7 @@
   <nav>
     <button id="tab-projekte" class="tab aktiv" data-tab="projekte">Projekte</button>
     <button id="tab-decks" class="tab" data-tab="decks">Präsentationen</button>
+    <button id="tab-teilnehmer" class="tab" data-tab="teilnehmer">Teilnehmer</button>
     <button id="tab-ampel" class="tab" data-tab="ampel">System-Check</button>
     <button id="tab-settings" class="tab" data-tab="settings">Einstellungen</button>
   </nav>
@@ -262,6 +263,39 @@
     </div>
   </section>
 
+  <section id="view-teilnehmer" class="view">
+    <div class="view-kopf">
+      <h2>Teilnehmer</h2>
+      <button id="btn-teilnehmer-neu">Teilnehmer anlegen</button>
+    </div>
+    <p class="muted">Zugang zum Portal unter <code>/portal</code>. Das Passwort
+      wird beim Freischalten einmal angezeigt und ist danach nicht mehr
+      abrufbar.</p>
+
+    <form id="teilnehmer-form" hidden>
+      <label>E-Mail <input name="email" type="email" required></label>
+      <label>Name <input name="name" required></label>
+      <label>Firma <input name="firma"></label>
+      <div class="zeile">
+        <button type="submit">Anlegen</button>
+        <button type="button" id="btn-teilnehmer-abbrechen">Abbrechen</button>
+        <span id="teilnehmer-status" class="muted"></span>
+      </div>
+    </form>
+
+    <div id="passwort-kasten" class="karte" hidden>
+      <p><strong>Passwort — jetzt notieren.</strong> Es wird nicht wieder
+        angezeigt; gespeichert ist nur der Hash.</p>
+      <p id="passwort-wert" class="passwort"></p>
+      <p id="passwort-fehler" class="muted"></p>
+      <div class="zeile">
+        <button type="button" id="btn-passwort-schliessen">Schließen</button>
+      </div>
+    </div>
+
+    <div id="teilnehmer-liste"></div>
+  </section>
+
   <section id="view-ampel" class="view">
     <div class="view-kopf">
       <h2>System-Check</h2>
@@ -349,6 +383,6 @@
   für den tollen Skill
 </footer>
 
-<script src="/static/app.js?v=9"></script>
+<script src="/static/app.js?v=10"></script>
 </body>
 </html>

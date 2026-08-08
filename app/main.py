@@ -13,12 +13,14 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, curriculum, higgsfield, praesentation, preflight, projekte, prompts, pruefung, runner
+from . import config, curriculum, db, higgsfield, praesentation, preflight, projekte, prompts, pruefung, runner, verwaltung
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / "static"
 
 app = FastAPI(title="SmartCon-Schulungen", version="0.2.0")
+
+app.include_router(verwaltung.router)
 
 
 @app.get("/api/preflight")
@@ -643,6 +645,7 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 def main():
     import uvicorn
 
+    db.init()
     cfg = config.load()
     host = "0.0.0.0" if cfg.get("lan_erreichbar") else "127.0.0.1"
     uvicorn.run(app, host=host, port=cfg["port"])
