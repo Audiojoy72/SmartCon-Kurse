@@ -170,7 +170,9 @@ def anmelden(email: str, passwort: str) -> str | None:
     Warum keine Unterscheidung zwischen „unbekannt" und „falsches Passwort":
     Die Antwort verrät sonst, welche Adressen Kunde sind — nicht nur über
     den Rückgabewert, sondern auch über die Zeit: scrypt läuft deshalb in
-    beiden Fällen, auch wenn die E-Mail nicht existiert.
+    jedem Fall, auch wenn die E-Mail nicht existiert oder der Teilnehmer
+    noch gar nicht freigeschaltet ist (`passwort_hash == ""` — das ist der
+    Normalzustand zwischen `anlegen()` und `freischalten()`, kein Randfall).
     """
     try:
         email = _email_normalisieren(email)
@@ -182,7 +184,7 @@ def anmelden(email: str, passwort: str) -> str | None:
         zeile = conn.execute(
             "SELECT id, passwort_hash FROM teilnehmer WHERE email = ?",
             (email,)).fetchone()
-        hash_ = zeile["passwort_hash"] if zeile is not None else _DUMMY_PASSWORT_HASH
+        hash_ = (zeile["passwort_hash"] if zeile is not None else "") or _DUMMY_PASSWORT_HASH
         richtig = zugang.passwort_pruefen(passwort, hash_)
         if zeile is None or not richtig:
             return None

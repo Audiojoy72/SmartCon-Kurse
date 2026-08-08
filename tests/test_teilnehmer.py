@@ -197,28 +197,38 @@ def test_anmelden_mit_nicht_string_feldern_crasht_nicht(datenbank):
     assert teilnehmer.anmelden("anna@example.org", None) is None
 
 
-def test_anmelden_braucht_fuer_unbekannte_und_bekannte_email_aehnlich_lang(datenbank):
-    """Sonst verrät die Antwortzeit, welche Adresse existiert.
+def test_anmelden_braucht_fuer_alle_faelle_aehnlich_lang(datenbank):
+    """Sonst verrät die Antwortzeit, welche Adresse existiert — oder wie weit sie ist.
 
-    zugang.passwort_pruefen() kostet ~200ms scrypt. Bricht anmelden() beim
-    unbekannten Teilnehmer vorzeitig ab, bevor gehasht wird, ist der Login
-    von außen ohne jede Zugangsdaten als Adress-Enumeration missbrauchbar
-    (bekannt: ~200ms, unbekannt: <1ms). Faktor 5 Toleranz, weil Timing-Tests
-    auf einer belasteten Maschine schwanken — das ist immer noch 100x
-    enger als die ursprüngliche Lücke.
+    zugang.passwort_pruefen() kostet ~200ms scrypt, aber nur, wenn ihr ein
+    plausibel aussehender Hash übergeben wird: ein leerer `passwort_hash`
+    (der Normalzustand zwischen `anlegen()` und `freischalten()`) lässt sie
+    über die ValueError-Behandlung von `hinterlegt.split("$")` sofort mit
+    False zurückkehren, ganz ohne scrypt-Aufruf — genau wie eine unbekannte
+    E-Mail. Drei Fälle, die alle gleich lang dauern müssen: bekannt +
+    freigeschaltet + falsches Passwort, bekannt + noch NICHT freigeschaltet,
+    und unbekannte E-Mail. Faktor 5 Toleranz, weil Timing-Tests auf einer
+    belasteten Maschine schwanken — das ist immer noch 100x enger als die
+    ursprüngliche Lücke.
     """
-    tid = teilnehmer.anlegen("anna@example.org", "Anna")
-    teilnehmer.freischalten(tid)
+    tid_freigeschaltet = teilnehmer.anlegen("anna@example.org", "Anna")
+    teilnehmer.freischalten(tid_freigeschaltet)
+    teilnehmer.anlegen("bea@example.org", "Bea")  # bewusst nicht freigeschaltet
 
     start = time.perf_counter()
     teilnehmer.anmelden("anna@example.org", "falsches-passwort")
-    bekannt = time.perf_counter() - start
+    freigeschaltet = time.perf_counter() - start
+
+    start = time.perf_counter()
+    teilnehmer.anmelden("bea@example.org", "egal")
+    nicht_freigeschaltet = time.perf_counter() - start
 
     start = time.perf_counter()
     teilnehmer.anmelden("niemand@example.org", "egal")
     unbekannt = time.perf_counter() - start
 
-    assert unbekannt > bekannt / 5
+    assert nicht_freigeschaltet > freigeschaltet / 5
+    assert unbekannt > freigeschaltet / 5
 
 
 def test_unbekannter_token_ergibt_none(datenbank):
