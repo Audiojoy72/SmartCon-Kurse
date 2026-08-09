@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from app import anmeldung, anmeldung_routes, db, kurse
+from app import anmeldung, anmeldung_routes, config, db, kurse
 
 FORMULAR = {"name": "Anna Beispiel", "email": "anna@example.org",
             "firma": "Beispiel GmbH", "nachricht": "Bitte um Rechnung."}
@@ -29,6 +29,13 @@ def anmeldeclient(client, tmp_path, monkeypatch):
     sid = kurse.serie_anlegen(kid, wochentag=2, uhrzeit="09:00")
     kurse.termine_erzeugen(sid, bis=date.today() + timedelta(days=60))
 
+    # Zweiter Kurs ohne jeden Termin: das terminlose E-Learning. Hier ist eine
+    # Anmeldung ohne termin_id zulässig — die Tests zur Bremse laufen darüber,
+    # damit sie nicht an der Platzzahl des ersten Kurses hängen.
+    kurse.anlegen("elearning", "E-Learning jederzeit", plaetze=100,
+                  preis_cent=9900, format="E-Learning",
+                  schulung_slug="elearning")
+
     client.kurs = kid
     client.termin = kurse.termine(kid)[0]["id"]
     client.gesendet = gesendet
@@ -38,6 +45,11 @@ def anmeldeclient(client, tmp_path, monkeypatch):
 def _absenden(c, **felder):
     daten = {**FORMULAR, "termin_id": str(c.termin), **felder}
     return c.post("/anmeldung/ki-pflicht", data=daten)
+
+
+def _absenden_terminlos(c, **felder):
+    """Anmeldung zum terminlosen Kurs — ohne termin_id, und das ist erlaubt."""
+    return c.post("/anmeldung/elearning", data={**FORMULAR, **felder})
 
 
 def test_kursliste_ist_ohne_anmeldung_erreichbar(anmeldeclient):
@@ -113,31 +125,68 @@ def test_fehlermeldung_nennt_keine_zahlen(anmeldeclient):
     assert not any(z.isdigit() for z in meldung)
 
 
+def test_ohne_termin_wird_abgewiesen_wenn_es_offene_gibt(anmeldeclient):
+    """Das leere Formularfeld darf die Platzprüfung nicht aushebeln."""
+    antwort = _absenden(anmeldeclient, termin_id="")
+    assert antwort.status_code == 400
+    assert "Termin" in antwort.text
+    assert anmeldung.liste() == []
+
+
+def test_ohne_termin_geht_wenn_alle_termine_vergeben_sind(anmeldeclient):
+    """Der Fall, den die Kursseite bewusst anbietet: „trotzdem anmelden"."""
+    for t in kurse.termine(anmeldeclient.kurs):
+        kurse.termin_status(t["id"], "geschlossen")
+    antwort = _absenden(anmeldeclient, termin_id="")
+    assert antwort.status_code == 200
+    assert anmeldung.liste()[0]["termin_id"] is None
+
+
+def test_ohne_termin_geht_beim_terminlosen_kurs(anmeldeclient):
+    assert _absenden_terminlos(anmeldeclient).status_code == 200
+
+
 def test_zu_viele_anmeldungen_werden_gebremst(anmeldeclient):
     for i in range(anmeldung_routes.RATE_MAX):
-        antwort = _absenden(anmeldeclient, name=f"P{i}", email=f"p{i}@example.org",
-                            termin_id="")
+        antwort = _absenden_terminlos(anmeldeclient, name=f"P{i}",
+                                      email=f"p{i}@example.org")
         assert antwort.status_code == 200, i
-    letzte = _absenden(anmeldeclient, name="Zuviel", email="zuviel@example.org",
-                       termin_id="")
+    letzte = _absenden_terminlos(anmeldeclient, name="Zuviel",
+                                 email="zuviel@example.org")
     assert letzte.status_code == 429
     assert len(anmeldung.liste()) == anmeldung_routes.RATE_MAX
 
 
-def test_die_bremse_gilt_je_absender(anmeldeclient):
+def test_die_bremse_gilt_je_absender(anmeldeclient, monkeypatch):
+    monkeypatch.setattr(anmeldung_routes.config, "load",
+                        lambda: {**config.DEFAULTS, "proxy_kopf_vertrauen": True})
     for i in range(anmeldung_routes.RATE_MAX):
-        _absenden(anmeldeclient, name=f"P{i}", email=f"p{i}@example.org",
-                  termin_id="")
-    daten = {**FORMULAR, "termin_id": ""}
-    andere = anmeldeclient.post("/anmeldung/ki-pflicht", data=daten,
+        _absenden_terminlos(anmeldeclient, name=f"P{i}", email=f"p{i}@example.org")
+    andere = anmeldeclient.post("/anmeldung/elearning", data=FORMULAR,
                                 headers={"CF-Connecting-IP": "203.0.113.9"})
     assert andere.status_code == 200
 
 
+def test_ohne_vertrauen_zaehlt_der_proxy_kopf_nicht(anmeldeclient):
+    """Default: `CF-Connecting-IP` darf die Bremse nicht abschalten."""
+    for i in range(anmeldung_routes.RATE_MAX):
+        _absenden_terminlos(anmeldeclient, name=f"P{i}", email=f"p{i}@example.org")
+    andere = anmeldeclient.post("/anmeldung/elearning", data=FORMULAR,
+                                headers={"CF-Connecting-IP": "203.0.113.9"})
+    assert andere.status_code == 429
+
+
+def test_die_bremse_zaehlt_nur_erfolgreiche_anmeldungen(anmeldeclient):
+    """Wer sich vertippt, soll sich nicht selbst aussperren."""
+    for _ in range(anmeldung_routes.RATE_MAX + 3):
+        assert _absenden_terminlos(anmeldeclient,
+                                   email="keine-mail").status_code == 400
+    assert _absenden_terminlos(anmeldeclient).status_code == 200
+
+
 def test_gebremste_anfrage_verschickt_nichts(anmeldeclient):
     for i in range(anmeldung_routes.RATE_MAX + 3):
-        _absenden(anmeldeclient, name=f"P{i}", email=f"p{i}@example.org",
-                  termin_id="")
+        _absenden_terminlos(anmeldeclient, name=f"P{i}", email=f"p{i}@example.org")
     assert len(anmeldeclient.gesendet) == anmeldung_routes.RATE_MAX
 
 

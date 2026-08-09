@@ -6,8 +6,10 @@ Kursseite, Anmeldung. Alles, was hier hereinkommt, kommt von Fremden.
 Die Bremse ist bewusst ein Wörterbuch im Prozess: kein Redis, keine
 Abhängigkeit, ein Neustart setzt sie zurück. Bei diesem Volumen ist das
 richtig. Sie ist eine Höflichkeitsbremse gegen Formular-Missbrauch, keine
-Sicherheitsgrenze — wer die App direkt erreicht, kann `CF-Connecting-IP`
-selbst setzen. Genau deshalb steht die App hinter dem Tunnel (Task 10).
+Sicherheitsgrenze. Sie zählt nur erfolgreiche Anmeldungen, denn nur die
+lösen den Missbrauchsfall aus (Mailversand) — ein Tippfehler im Formular
+darf niemanden für eine Stunde aussperren, hinter einem Firmen-NAT gleich
+die ganze Belegschaft.
 """
 
 import logging
@@ -16,7 +18,7 @@ import time
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-from . import anmeldung, anmeldung_seiten as seiten, kurse, mail
+from . import anmeldung, anmeldung_seiten as seiten, config, kurse, mail
 
 router = APIRouter(prefix="/anmeldung")
 log = logging.getLogger(__name__)
@@ -30,25 +32,38 @@ _ZUGRIFFE: dict[str, list[float]] = {}
 
 
 def _absender(request: Request) -> str:
-    """Wer fragt. Hinter dem Tunnel steht die echte Adresse im Cloudflare-Kopf."""
-    kopf = request.headers.get(PROXY_KOPF, "").strip()
-    if kopf:
-        return kopf.split(",")[0].strip()[:64]
+    """Wer fragt. Hinter dem Tunnel steht die echte Adresse im Cloudflare-Kopf.
+
+    Dem Kopf wird nur geglaubt, wenn `proxy_kopf_vertrauen` gesetzt ist —
+    sonst könnte jeder, der die App direkt erreicht, die Bremse mit einer
+    frei erfundenen Zeile abschalten.
+    """
+    if config.load().get("proxy_kopf_vertrauen"):
+        kopf = request.headers.get(PROXY_KOPF, "").strip()
+        if kopf:
+            return kopf.split(",")[0].strip()[:64]
     return request.client.host if request.client else "unbekannt"
 
 
-def _bremse(request: Request) -> None:
+def _fenster(wer: str, jetzt: float) -> list[float]:
+    return [t for t in _ZUGRIFFE.get(wer, []) if jetzt - t < RATE_FENSTER]
+
+
+def _bremse_pruefen(wer: str) -> None:
     """Wirft 429, wenn ein Absender das Fenster ausgeschöpft hat."""
     jetzt = time.monotonic()
-    wer = _absender(request)
-    fenster = [t for t in _ZUGRIFFE.get(wer, []) if jetzt - t < RATE_FENSTER]
+    fenster = _fenster(wer, jetzt)
+    _ZUGRIFFE[wer] = fenster
     if len(fenster) >= RATE_MAX:
-        _ZUGRIFFE[wer] = fenster
         raise HTTPException(
             429, "Zu viele Anmeldungen von hier. Bitte später noch einmal "
                  "versuchen oder eine Mail schreiben.")
-    fenster.append(jetzt)
-    _ZUGRIFFE[wer] = fenster
+
+
+def _bremse_zaehlen(wer: str) -> None:
+    """Vermerkt eine erfolgreiche Anmeldung. Läuft erst nach dem Speichern."""
+    jetzt = time.monotonic()
+    _ZUGRIFFE[wer] = _fenster(wer, jetzt) + [jetzt]
 
     # Sonst wächst das Wörterbuch mit jeder gesehenen Adresse weiter.
     if len(_ZUGRIFFE) > RATE_EINTRAEGE_MAX:
@@ -82,7 +97,8 @@ def anmelden(request: Request, slug: str,
              firma: str = Form(""), nachricht: str = Form(""),
              termin_id: str = Form("")):
     k = _kurs_oder_404(slug)
-    _bremse(request)
+    wer = _absender(request)
+    _bremse_pruefen(wer)
     werte = {"name": name, "email": email, "firma": firma, "nachricht": nachricht}
 
     tid: int | None = None
@@ -97,6 +113,7 @@ def anmelden(request: Request, slug: str,
     except anmeldung.AnmeldungFehler as e:
         return _mit_fehler(k, str(e), werte)
 
+    _bremse_zaehlen(wer)
     _bestaetigen(neu, k, tid)
     return seiten.danke_seite(k)
 

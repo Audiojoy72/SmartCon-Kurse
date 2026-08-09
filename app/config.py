@@ -35,6 +35,11 @@ DEFAULTS = {
     "smtp_starttls": True,
     # Öffentliche Adresse des Portals, für die Zugangsmail.
     "portal_url": "",
+    # Nur einschalten, wenn die App tatsächlich hinter dem Cloudflare-Tunnel
+    # steht: Dann zählt CF-Connecting-IP als Absender für die Anmeldebremse.
+    # Aus bedeutet, dass die Bremse an request.client.host hängt — nicht an
+    # einer Kopfzeile, die jeder Anrufer selbst setzen kann.
+    "proxy_kopf_vertrauen": False,
 }
 
 
