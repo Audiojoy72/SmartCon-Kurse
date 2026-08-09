@@ -69,6 +69,27 @@ def test_liste_kann_auf_aktive_filtern(datenbank):
     assert [k["slug"] for k in kurse.liste(nur_aktive=True)] == ["a"]
 
 
+@pytest.mark.parametrize("uhrzeit", ["abc", "25:70", "9:00", "", "09:0",
+                                     "24:00", "09:60"])
+def test_ungueltige_uhrzeit_legt_keine_serie_an(datenbank, uhrzeit):
+    """Sonst bliebe die Serie als Leiche liegen und termine_erzeugen wirft 500."""
+    kid = kurse.anlegen("ki-pflicht", "Titel")
+    with pytest.raises(kurse.KursFehler, match="Uhrzeit"):
+        kurse.serie_anlegen(kid, wochentag=2, uhrzeit=uhrzeit)
+    conn = db.verbinden()
+    try:
+        assert conn.execute("SELECT count(*) FROM serie").fetchone()[0] == 0
+    finally:
+        conn.close()
+
+
+@pytest.mark.parametrize("wochentag", [-1, 7, "2", True])
+def test_ungueltiger_wochentag_legt_keine_serie_an(datenbank, wochentag):
+    kid = kurse.anlegen("ki-pflicht", "Titel")
+    with pytest.raises(kurse.KursFehler, match="Wochentag"):
+        kurse.serie_anlegen(kid, wochentag=wochentag, uhrzeit="09:00")
+
+
 def test_serie_erzeugt_termine_im_rhythmus(datenbank):
     kid = kurse.anlegen("ki-pflicht", "Titel", plaetze=10)
     # Mittwochs, 14-tägig

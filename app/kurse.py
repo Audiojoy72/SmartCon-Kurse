@@ -15,6 +15,8 @@ from . import db
 
 STATUS = ("offen", "geschlossen", "abgesagt")
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+# HH:MM, und zwar mit Bereich: "25:70" passt zwar auf \d\d:\d\d, aber nicht hier.
+_UHRZEIT_RE = re.compile(r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
 
 # Gemeinsames JOIN-Fragment für "belegt" (Anmeldungen ungleich storniert je
 # Termin) — von termine() und naechste_offene() genutzt, damit eine
@@ -126,7 +128,21 @@ def kurs_nach_slug(slug: str) -> dict | None:
 
 def serie_anlegen(kurs_id: int, wochentag: int, uhrzeit: str,
                   dauer_tage: int = 1, rhythmus: int = 1) -> int:
-    """Legt die Wiederholungsregel einer Serie an und gibt ihre id zurück."""
+    """Legt die Wiederholungsregel einer Serie an und gibt ihre id zurück.
+
+    Geprüft wird vor dem Schreiben: Die Verbindung ist Autocommit, eine
+    angelegte Serie ist also sofort dauerhaft. Ohne Prüfung landete eine
+    Serie mit „25:70“ in der Tabelle und erst das nachgelagerte
+    `termine_erzeugen()` scheiterte — mit einem ValueError statt KursFehler
+    und einer Leiche in der Tabelle.
+    """
+    if not isinstance(wochentag, int) or isinstance(wochentag, bool) \
+            or not 0 <= wochentag <= 6:
+        raise KursFehler("Der Wochentag muss eine Zahl von 0 (Montag) bis 6 sein")
+    uhrzeit = str(uhrzeit).strip()
+    if not _UHRZEIT_RE.match(uhrzeit):
+        raise KursFehler(f"„{uhrzeit}“ ist keine gültige Uhrzeit (erwartet HH:MM)")
+
     conn = db.verbinden()
     try:
         cur = conn.execute(
