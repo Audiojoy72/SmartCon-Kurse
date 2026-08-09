@@ -31,7 +31,15 @@ def umgebung(tmp_path, monkeypatch):
                         nachweis="AI-SmartCon-Zertifikat")
     sid = kurse.serie_anlegen(kid, wochentag=2, uhrzeit="09:00")
     kurse.termine_erzeugen(sid, bis=date(2026, 12, 31))
-    return {"kurs": kid, "termin": kurse.termine(kid)[0]["id"]}
+
+    # Zweiter Kurs ohne jeden Termin — das terminlose E-Learning. Nur dort ist
+    # eine Anmeldung ohne Termin zulässig; beim Kurs mit offenen Terminen ist
+    # die Terminwahl Pflicht.
+    terminlos = kurse.anlegen("terminlos", "E-Learning jederzeit",
+                              schulung_slug="ki-pflicht",
+                              nachweis="AI-SmartCon-Zertifikat")
+    return {"kurs": kid, "termin": kurse.termine(kid)[0]["id"],
+            "terminlos": terminlos}
 
 
 def test_annehmen_legt_an(umgebung):
@@ -44,7 +52,8 @@ def test_annehmen_legt_an(umgebung):
 
 
 def test_email_wird_normalisiert_und_geprueft(umgebung):
-    aid = anmeldung.annehmen(umgebung["kurs"], None, "Anna", "  Anna@EXAMPLE.org ")
+    aid = anmeldung.annehmen(umgebung["terminlos"], None, "Anna",
+                             "  Anna@EXAMPLE.org ")
     assert anmeldung.eintrag(aid)["email"] == "anna@example.org"
     with pytest.raises(anmeldung.AnmeldungFehler, match="E-Mail"):
         anmeldung.annehmen(umgebung["kurs"], None, "Anna", "keine-mail")
@@ -73,6 +82,34 @@ def test_termin_muss_zum_kurs_gehoeren(umgebung):
 
 
 def test_terminlose_anmeldung_ist_erlaubt(umgebung):
+    """Ohne buchbaren Termin gibt es nichts zu wählen — das ist zulässig."""
+    aid = anmeldung.annehmen(umgebung["terminlos"], None, "Anna",
+                             "anna@example.org")
+    assert anmeldung.eintrag(aid)["termin_id"] is None
+
+
+def test_ohne_termin_wird_abgewiesen_wenn_es_offene_gibt(umgebung):
+    """Sonst wäre die Platzprüfung mit einem leeren termin_id zu umgehen."""
+    with pytest.raises(anmeldung.AnmeldungFehler, match="Termin"):
+        anmeldung.annehmen(umgebung["kurs"], None, "Anna", "anna@example.org")
+
+
+def test_ohne_termin_geht_wenn_alle_termine_vergeben_sind(umgebung):
+    """Der Fall, den die Kursseite mit „trotzdem anmelden" bewusst anbietet."""
+    for t in kurse.termine(umgebung["kurs"]):
+        kurse.termin_status(t["id"], "geschlossen")
+    aid = anmeldung.annehmen(umgebung["kurs"], None, "Anna", "anna@example.org")
+    assert anmeldung.eintrag(aid)["termin_id"] is None
+
+
+def test_ohne_termin_geht_wenn_alle_offenen_ausgebucht_sind(umgebung):
+    """Ausgebucht heißt: nicht buchbar — also auch nichts zu wählen."""
+    for t in kurse.termine(umgebung["kurs"]):
+        if t["status"] != "offen":
+            continue
+        for i in range(t["frei"]):
+            anmeldung.annehmen(umgebung["kurs"], t["id"], f"P{t['id']}-{i}",
+                               f"p{t['id']}-{i}@example.org")
     aid = anmeldung.annehmen(umgebung["kurs"], None, "Anna", "anna@example.org")
     assert anmeldung.eintrag(aid)["termin_id"] is None
 
@@ -115,7 +152,7 @@ def test_geschlossener_termin_nimmt_nichts_an(umgebung):
 
 
 def test_status_setzen_prueft_den_wert(umgebung):
-    aid = anmeldung.annehmen(umgebung["kurs"], None, "Anna", "anna@example.org")
+    aid = anmeldung.annehmen(umgebung["terminlos"], None, "Anna", "anna@example.org")
     anmeldung.status_setzen(aid, "bezahlt")
     assert anmeldung.eintrag(aid)["status"] == "bezahlt"
     with pytest.raises(anmeldung.AnmeldungFehler):
@@ -123,8 +160,8 @@ def test_status_setzen_prueft_den_wert(umgebung):
 
 
 def test_liste_kann_nach_status_filtern(umgebung):
-    a = anmeldung.annehmen(umgebung["kurs"], None, "Anna", "anna@example.org")
-    anmeldung.annehmen(umgebung["kurs"], None, "Bodo", "bodo@example.org")
+    a = anmeldung.annehmen(umgebung["terminlos"], None, "Anna", "anna@example.org")
+    anmeldung.annehmen(umgebung["terminlos"], None, "Bodo", "bodo@example.org")
     anmeldung.status_setzen(a, "bezahlt")
     assert len(anmeldung.liste()) == 2
     assert [e["name"] for e in anmeldung.liste(status="bezahlt")] == ["Anna"]
@@ -134,7 +171,7 @@ def test_liste_nennt_kurs_und_termin(umgebung):
     """Die Verwaltung zeigt beides nebeneinander und soll nicht nachladen müssen."""
     anmeldung.annehmen(umgebung["kurs"], umgebung["termin"], "Anna",
                        "anna@example.org")
-    anmeldung.annehmen(umgebung["kurs"], None, "Bodo", "bodo@example.org")
+    anmeldung.annehmen(umgebung["terminlos"], None, "Bodo", "bodo@example.org")
     nach_name = {e["name"]: e for e in anmeldung.liste()}
     assert nach_name["Anna"]["kurs_titel"] == "KI-Pflichtschulung"
     assert nach_name["Anna"]["beginn"] is not None
@@ -160,13 +197,13 @@ def test_zu_teilnehmer_legt_an_und_verknuepft(umgebung):
 
 
 def test_zu_teilnehmer_nur_bei_bezahlt(umgebung):
-    aid = anmeldung.annehmen(umgebung["kurs"], None, "Anna", "anna@example.org")
+    aid = anmeldung.annehmen(umgebung["terminlos"], None, "Anna", "anna@example.org")
     with pytest.raises(anmeldung.AnmeldungFehler, match="bezahlt"):
         anmeldung.zu_teilnehmer(aid)
 
 
 def test_zu_teilnehmer_nur_einmal(umgebung):
-    aid = anmeldung.annehmen(umgebung["kurs"], None, "Anna", "anna@example.org")
+    aid = anmeldung.annehmen(umgebung["terminlos"], None, "Anna", "anna@example.org")
     anmeldung.status_setzen(aid, "bezahlt")
     anmeldung.zu_teilnehmer(aid)
     with pytest.raises(anmeldung.AnmeldungFehler, match="bereits"):
@@ -184,7 +221,7 @@ def test_zu_teilnehmer_ohne_schulung_wirft(umgebung):
 def test_zweiter_kurs_fuer_dieselbe_person(umgebung):
     """Wer schon Teilnehmer ist, bekommt die zweite Teilnahme, kein zweites Konto."""
     kid2 = kurse.anlegen("zweiter", "Zweiter Kurs", schulung_slug="ki-pflicht")
-    a1 = anmeldung.annehmen(umgebung["kurs"], None, "Anna", "anna@example.org")
+    a1 = anmeldung.annehmen(umgebung["terminlos"], None, "Anna", "anna@example.org")
     anmeldung.status_setzen(a1, "bezahlt")
     tid1, _ = anmeldung.zu_teilnehmer(a1)
 

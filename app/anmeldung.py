@@ -33,6 +33,26 @@ def _email_normalisieren(email: str) -> str:
     return sauber
 
 
+def _hat_buchbaren_termin(conn, kurs_id: int) -> bool:
+    """Ob der Kurs mindestens einen künftigen, offenen Termin mit Platz hat.
+
+    Dieselbe Auswahl, die `kurse.naechste_offene()` der Kursseite als
+    Auswahlliste zeigt — nur als Ja/Nein und ohne Begrenzung auf die
+    nächsten vier. Läuft auf der Verbindung des Aufrufers, damit die
+    Prüfung im selben `BEGIN IMMEDIATE` liegt wie das Schreiben.
+    """
+    zeile = conn.execute(
+        "SELECT 1 FROM termin t "
+        "LEFT JOIN ("
+        "  SELECT termin_id, count(*) AS belegt FROM anmeldung "
+        "  WHERE status != 'storniert' GROUP BY termin_id"
+        ") a ON a.termin_id = t.id "
+        "WHERE t.kurs_id = ? AND t.status = 'offen' AND t.beginn > ? "
+        "AND coalesce(a.belegt, 0) < t.plaetze LIMIT 1",
+        (kurs_id, datetime.now().isoformat())).fetchone()
+    return zeile is not None
+
+
 def annehmen(kurs_id: int, termin_id: int | None, name: str, email: str,
             firma: str = "", nachricht: str = "") -> int:
     """Nimmt eine Anmeldung entgegen und gibt ihre id zurück.
@@ -56,7 +76,16 @@ def annehmen(kurs_id: int, termin_id: int | None, name: str, email: str,
         if kurs_zeile is None:
             raise AnmeldungFehler("Kurs nicht gefunden")
 
-        if termin_id is not None:
+        if termin_id is None:
+            # Sonst wäre die Platzprüfung mit einem leeren Formularfeld zu
+            # umgehen: Ohne Termin gäbe es nichts zu prüfen. Die Terminwahl
+            # ist Pflicht, sobald es überhaupt etwas zu wählen gibt — genau
+            # dann zeigt die Kursseite auch die Auswahlliste. Gibt es keinen
+            # buchbaren Termin (terminloses E-Learning, alles vergeben oder
+            # vorbei), bleibt die terminlose Anmeldung zulässig.
+            if _hat_buchbaren_termin(conn, kurs_id):
+                raise AnmeldungFehler("Bitte einen Termin auswählen.")
+        else:
             termin_zeile = conn.execute(
                 "SELECT * FROM termin WHERE id = ?", (termin_id,)).fetchone()
             if termin_zeile is None:
