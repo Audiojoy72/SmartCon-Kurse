@@ -10,7 +10,7 @@ State-Machine (Briefing → Curriculum → Freigabe-Gate → Produktion → fert
 schickt pro Phase einen KI-Agenten (Claude Code headless, Kimi als Fallback) mit
 einem klaren Arbeitsauftrag los. Der Agent folgt dem Skill `skill/schulung/`.
 Mit dem Schalter „KI-Medien = Nein" läuft alles ohne Higgsfield (0 Credits).
-Öffentliches Repo (AGPL-3.0): github.com/Audiojoy72/SmartCon-Schulungen.
+Privates Repo: github.com/Audiojoy72/SmartCon-Schulungen.
 Pflichtenheft mit allen 16 Grundsatz-Entscheidungen: `SPEC.md`.
 
 ## Tech Stack

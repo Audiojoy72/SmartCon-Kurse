@@ -77,7 +77,7 @@ Bedienbar auch vom Handy: geprüft bei 390 px und 320 px, kein horizontaler
 | Betrieb ohne Docker | `python3 -m venv .venv && .venv/bin/python -m app.main` |
 | Netz | Port 8710; `lan_erreichbar` in `config.json` → Bind `0.0.0.0` oder `127.0.0.1`, **Default aus**. Kein Login — LAN-Freigabe ist Vertrauenssache |
 | Whisper-Tunnel (Referenz-Setup) | systemd-User-Unit `whisper-tunnel.service` (`ssh -N -L 0.0.0.0:18710:localhost:8000 dsski`), `Restart=always`, Linger |
-| Repo | `github.com/Audiojoy72/SmartCon-Schulungen` (public, Branch `master`), Lizenz AGPL-3.0 |
+| Repo | `github.com/Audiojoy72/SmartCon-Schulungen` (privat, Branch `master`) |
 
 ## Der Skill (`skill/schulung/`)
 

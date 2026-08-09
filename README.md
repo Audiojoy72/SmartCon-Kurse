@@ -162,7 +162,3 @@ projects/<slug>/  — status.json, curriculum.md, Medien, fertige HTML
 Die App besitzt die State-Machine (Briefing → Curriculum → Gate → Produktion →
 fertig), der Agent arbeitet pro Phase mit klaren Arbeitsaufträgen zu. Details:
 [TECH_STACK.md](TECH_STACK.md) und [SPEC.md](SPEC.md).
-
-## Lizenz
-
-AGPL-3.0, siehe [LICENSE](LICENSE).
