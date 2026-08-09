@@ -127,6 +127,24 @@ Löschen geht direkt in der App: im Projekt ganz unten „Schulung löschen", na
 einer Rückfrage verschwindet der komplette Ordner. Während ein Agent arbeitet,
 ist das gesperrt.
 
+## Teilnehmer-Portal
+
+Fertige Schulungen lassen sich an Teilnehmer ausgeben. Der Weg:
+
+1. **Teilnehmer anlegen** (Reiter „Teilnehmer"): E-Mail, Name, Firma.
+2. **Schulung zuordnen** — nur Schulungen, für die eine Prüfung erzeugt wurde.
+3. **Freischalten**: erzeugt das Passwort und öffnet den Zugang für 30 Tage.
+   Das Passwort wird **einmal** angezeigt und ist danach nicht mehr abrufbar.
+4. Der Teilnehmer meldet sich unter `/portal` an, arbeitet die Lerneinheit
+   durch und legt die Abschlussprüfung ab — drei Versuche.
+5. Bei Bestehen gibt es den Nachweis als druckbare Seite.
+
+Die Prüfung wird **auf dem Server** ausgewertet; die richtigen Antworten
+verlassen ihn nicht. Die Daten liegen in `data/kurse.db` (gitignored) und
+gehören ins Backup:
+
+    sqlite3 data/kurse.db ".backup data/kurse-$(date +%F).db"
+
 ## Architektur in Kürze
 
 ```

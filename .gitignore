@@ -4,6 +4,7 @@ __pycache__/
 config.json
 config-logo.png
 projects/
+data/
 .DS_Store
 aios-uploads/
 .pytest_cache/

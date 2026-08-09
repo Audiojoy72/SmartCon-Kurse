@@ -982,7 +982,7 @@ git commit -m "feat: Teilnehmer, Teilnahmen und Zugangsfenster"
   - `zaehlen(teilnahme_id: int) -> int`
   - `bestanden(teilnahme_id: int) -> dict | None` — der bestandene Versuch, falls es einen gibt
   - `starten(teilnahme_id: int) -> int` — id des Versuchs; wirft bei erschöpften Versuchen
-  - `auswerten(versuch_id: int, slug: str, antworten: dict[str, int]) -> dict`
+  - `auswerten(versuch_id: int, antworten: dict[str, int]) -> dict` — leitet den Kurs aus der Teilnahme des Versuchs ab, statt ihn vom Aufrufer zu nehmen
   - `liste(teilnahme_id: int) -> list[dict]`
 
 Die Auswertung liest die richtigen Antworten aus `projects/<slug>/pruefung.json` — sie gehen nie an den Browser.
@@ -1046,7 +1046,7 @@ def test_starten_zaehlt_hoch(umgebung):
 
 def test_alles_richtig_ergibt_hundert_prozent(umgebung):
     vid = versuche.starten(umgebung)
-    ergebnis = versuche.auswerten(vid, "kurs", {"0": 0, "1": 1, "2": 2, "3": 0})
+    ergebnis = versuche.auswerten(vid, {"0": 0, "1": 1, "2": 2, "3": 0})
     assert ergebnis["prozent"] == 100
     assert ergebnis["bestanden"] is True
     assert ergebnis["treffer"] == 4
@@ -1054,7 +1054,7 @@ def test_alles_richtig_ergibt_hundert_prozent(umgebung):
 
 def test_die_haelfte_richtig_besteht_nicht(umgebung):
     vid = versuche.starten(umgebung)
-    ergebnis = versuche.auswerten(vid, "kurs", {"0": 0, "1": 1, "2": 0, "3": 1})
+    ergebnis = versuche.auswerten(vid, {"0": 0, "1": 1, "2": 0, "3": 1})
     assert ergebnis["prozent"] == 50
     assert ergebnis["bestanden"] is False
 
@@ -1062,19 +1062,19 @@ def test_die_haelfte_richtig_besteht_nicht(umgebung):
 def test_genau_auf_der_grenze_besteht(umgebung):
     # 3 von 4 sind 75 Prozent, die Grenze liegt bei 70.
     vid = versuche.starten(umgebung)
-    assert versuche.auswerten(vid, "kurs", {"0": 0, "1": 1, "2": 2, "3": 1})["bestanden"] is True
+    assert versuche.auswerten(vid, {"0": 0, "1": 1, "2": 2, "3": 1})["bestanden"] is True
 
 
 def test_fehlende_antwort_zaehlt_als_falsch(umgebung):
     vid = versuche.starten(umgebung)
-    ergebnis = versuche.auswerten(vid, "kurs", {"0": 0})
+    ergebnis = versuche.auswerten(vid, {"0": 0})
     assert ergebnis["treffer"] == 1
     assert ergebnis["bestanden"] is False
 
 
 def test_das_ergebnis_nennt_die_richtige_antwort_erst_hinterher(umgebung):
     vid = versuche.starten(umgebung)
-    ergebnis = versuche.auswerten(vid, "kurs", {"0": 1, "1": 1, "2": 2, "3": 0})
+    ergebnis = versuche.auswerten(vid, {"0": 1, "1": 1, "2": 2, "3": 0})
     rueckmeldung = ergebnis["rueckmeldung"]
     assert rueckmeldung[0]["korrekt"] is False
     assert rueckmeldung[0]["richtig"] == 0
@@ -1083,7 +1083,7 @@ def test_das_ergebnis_nennt_die_richtige_antwort_erst_hinterher(umgebung):
 
 def test_versuch_wird_gespeichert(umgebung):
     vid = versuche.starten(umgebung)
-    versuche.auswerten(vid, "kurs", {"0": 0, "1": 1, "2": 2, "3": 0})
+    versuche.auswerten(vid, {"0": 0, "1": 1, "2": 2, "3": 0})
     eintrag = versuche.liste(umgebung)[0]
     assert eintrag["prozent"] == 100
     assert eintrag["bestanden"] == 1
@@ -1093,21 +1093,21 @@ def test_versuch_wird_gespeichert(umgebung):
 def test_drei_versuche_sind_das_maximum(umgebung):
     for _ in range(versuche.MAX_VERSUCHE):
         vid = versuche.starten(umgebung)
-        versuche.auswerten(vid, "kurs", {"0": 1, "1": 0, "2": 0, "3": 1})
+        versuche.auswerten(vid, {"0": 1, "1": 0, "2": 0, "3": 1})
     with pytest.raises(versuche.VersuchFehler, match="Versuche"):
         versuche.starten(umgebung)
 
 
 def test_nach_bestehen_kein_weiterer_versuch(umgebung):
     vid = versuche.starten(umgebung)
-    versuche.auswerten(vid, "kurs", {"0": 0, "1": 1, "2": 2, "3": 0})
+    versuche.auswerten(vid, {"0": 0, "1": 1, "2": 2, "3": 0})
     with pytest.raises(versuche.VersuchFehler, match="bestanden"):
         versuche.starten(umgebung)
 
 
 def test_bestanden_liefert_den_versuch(umgebung):
     vid = versuche.starten(umgebung)
-    versuche.auswerten(vid, "kurs", {"0": 0, "1": 1, "2": 2, "3": 0})
+    versuche.auswerten(vid, {"0": 0, "1": 1, "2": 2, "3": 0})
     b = versuche.bestanden(umgebung)
     assert b is not None
     assert b["prozent"] == 100
@@ -1122,14 +1122,14 @@ def test_ein_offener_versuch_wird_nicht_doppelt_gestartet(umgebung):
 
 def test_auswerten_eines_beendeten_versuchs_wird_abgewiesen(umgebung):
     vid = versuche.starten(umgebung)
-    versuche.auswerten(vid, "kurs", {"0": 1, "1": 0, "2": 0, "3": 1})
+    versuche.auswerten(vid, {"0": 1, "1": 0, "2": 0, "3": 1})
     with pytest.raises(versuche.VersuchFehler, match="abgeschlossen"):
-        versuche.auswerten(vid, "kurs", {"0": 0, "1": 1, "2": 2, "3": 0})
+        versuche.auswerten(vid, {"0": 0, "1": 1, "2": 2, "3": 0})
 
 
 def test_unsinnige_antwortwerte_zaehlen_als_falsch(umgebung):
     vid = versuche.starten(umgebung)
-    ergebnis = versuche.auswerten(vid, "kurs", {"0": 99, "1": -1, "2": 2, "3": 0})
+    ergebnis = versuche.auswerten(vid, {"0": 99, "1": -1, "2": 2, "3": 0})
     assert ergebnis["treffer"] == 2
 ```
 
@@ -1230,13 +1230,20 @@ def starten(teilnahme_id: int) -> int:
         conn.close()
 
 
-def auswerten(versuch_id: int, slug: str, antworten: dict) -> dict:
+def auswerten(versuch_id: int, antworten: dict) -> dict:
     """Wertet die Antworten gegen pruefung.json aus und schließt den Versuch.
 
     `antworten` bildet den Fragenindex als String auf die gewählte Option ab —
     so kommt es aus einem Formular. Fehlende, unbekannte oder unsinnige Werte
     zählen als falsch; ein Formular ohne Antwort darf nicht abstürzen.
+
+    Der Kurs wird aus der Teilnahme des Versuchs abgeleitet, nicht vom
+    Aufrufer übernommen: Sonst könnte eine Route, die den Slug aus der URL
+    nimmt, einen Versuch gegen die Prüfung eines anderen Kurses werten — etwa
+    gegen eine mit niedrigerer Bestehensgrenze — und das Bestehen würde
+    trotzdem der eigenen Teilnahme gutgeschrieben.
     """
+    slug = _slug_des_versuchs(versuch_id)
     d = projekte.projekt_dir(slug)
     if d is None:
         raise VersuchFehler(f"Schulung „{slug}“ nicht gefunden")
@@ -2721,7 +2728,7 @@ async def portal_pruefung_abgeben(tnid: int, request: Request,
 
     try:
         versuch_id = versuche.starten(tnid)
-        ergebnis = versuche.auswerten(versuch_id, tn["slug"], antworten)
+        ergebnis = versuche.auswerten(versuch_id, antworten)
     except versuche.VersuchFehler as e:
         raise HTTPException(409, str(e))
 

@@ -18,6 +18,9 @@ document.querySelectorAll(".tab").forEach((btn) => {
       deckPanel("dv-liste");
       ladeDecks();
     }
+    if (btn.dataset.tab === "teilnehmer") {
+      ladeTeilnehmer();
+    }
   });
 });
 
@@ -938,4 +941,120 @@ document.getElementById("deck-form").addEventListener("submit", async (e) => {
   status.textContent = "";
   e.target.reset();
   oeffneDeck(ergebnis.slug);
+});
+
+/* ---------- Teilnehmer ---------- */
+
+function zeigePasswort(passwort, fehler) {
+  /* Einmalige Anzeige des Passworts, bzw. eine Fehlermeldung.
+     Kein alert/prompt: ein modaler Dialog blockiert die Browser-Automatisierung,
+     mit der diese Oberfläche geprüft wird. */
+  const kasten = document.getElementById('passwort-kasten');
+  const feld = document.getElementById('passwort-wert');
+  const meldung = document.getElementById('passwort-fehler');
+  meldung.textContent = fehler || '';
+  feld.textContent = passwort || '';
+  kasten.hidden = !(passwort || fehler);
+}
+
+document.getElementById('btn-passwort-schliessen').addEventListener('click', () => {
+  zeigePasswort('', '');
+});
+
+async function ladeTeilnehmer() {
+  const antwort = await fetch('/api/verwaltung/teilnehmer');
+  const ziel = document.getElementById('teilnehmer-liste');
+  if (!antwort.ok) { ziel.innerHTML = '<p class="muted">Nicht lesbar.</p>'; return; }
+  const liste = (await antwort.json()).teilnehmer;
+  if (!liste.length) {
+    ziel.innerHTML = '<p class="muted">Noch niemand angelegt.</p>';
+    return;
+  }
+  ziel.innerHTML = liste.map((t) => `
+    <div class="karte">
+      <strong>${esc(t.name)}</strong> <span class="muted">${esc(t.email)}</span>
+      ${t.firma ? `<span class="muted"> · ${esc(t.firma)}</span>` : ''}
+      <span class="badge">${t.hat_zugang ? 'Zugang aktiv' : 'kein Zugang'}</span>
+      <div class="teilnahmen">
+        ${t.teilnahmen.map((tn) => `
+          <div class="zeile">
+            <span>${esc(tn.titel)}</span>
+            <span class="muted">${tn.versuche}/3 Versuche${tn.bestanden ? ' · bestanden' : ''}</span>
+            <span class="muted">${tn.offen ? 'offen bis ' + esc((tn.gueltig_bis || '').slice(0, 10)) : 'geschlossen'}</span>
+            <button data-verlaengern="${tn.id}">30 Tage verlängern</button>
+          </div>`).join('') || '<p class="muted">Noch keine Schulung zugeordnet.</p>'}
+      </div>
+      <div class="zeile">
+        <select data-schulung="${t.id}"></select>
+        <button data-zuordnen="${t.id}">Schulung zuordnen</button>
+        <button data-freischalten="${t.id}">Freischalten</button>
+      </div>
+    </div>`).join('');
+
+  // Schulungen mit Prüfung in die Auswahlfelder
+  const projekteAntwort = await fetch('/api/projekte');
+  const fertige = (await projekteAntwort.json()).projekte
+    .filter((p) => p.art !== 'praesentation' && p.phase === 'fertig');
+  ziel.querySelectorAll('[data-schulung]').forEach((sel) => {
+    sel.innerHTML = fertige.map((p) =>
+      `<option value="${esc(p.slug)}">${esc(p.thema || p.slug)}</option>`).join('')
+      || '<option value="">keine fertige Schulung</option>';
+  });
+
+  ziel.querySelectorAll('[data-zuordnen]').forEach((el) => {
+    el.addEventListener('click', async () => {
+      const tid = el.dataset.zuordnen;
+      const slug = ziel.querySelector(`[data-schulung="${tid}"]`).value;
+      const a = await fetch(`/api/verwaltung/teilnehmer/${tid}/teilnahme`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug }) });
+      if (!a.ok) zeigePasswort('', (await a.json()).detail);
+      ladeTeilnehmer();
+    });
+  });
+
+  ziel.querySelectorAll('[data-freischalten]').forEach((el) => {
+    el.addEventListener('click', async () => {
+      const a = await fetch(`/api/verwaltung/teilnehmer/${el.dataset.freischalten}/freischalten`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tage: 30 }) });
+      const e = await a.json();
+      if (!a.ok) { zeigePasswort('', e.detail); return; }
+      // Einmalige Anzeige: danach ist der Klartext nicht mehr zu bekommen.
+      // Bewusst kein window.prompt/alert — ein modaler Dialog blockiert jede
+      // Browser-Automatisierung, mit der diese Oberfläche später geprüft wird.
+      zeigePasswort(e.passwort, '');
+      ladeTeilnehmer();
+    });
+  });
+
+  ziel.querySelectorAll('[data-verlaengern]').forEach((el) => {
+    el.addEventListener('click', async () => {
+      await fetch(`/api/verwaltung/teilnahme/${el.dataset.verlaengern}/verlaengern`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tage: 30 }) });
+      ladeTeilnehmer();
+    });
+  });
+}
+
+document.getElementById('btn-teilnehmer-neu').addEventListener('click', () => {
+  document.getElementById('teilnehmer-form').hidden = false;
+});
+document.getElementById('btn-teilnehmer-abbrechen').addEventListener('click', () => {
+  document.getElementById('teilnehmer-form').hidden = true;
+});
+document.getElementById('teilnehmer-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const status = document.getElementById('teilnehmer-status');
+  const daten = Object.fromEntries(new FormData(e.target));
+  const a = await fetch('/api/verwaltung/teilnehmer',
+    { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(daten) });
+  const ergebnis = await a.json();
+  if (!a.ok) { status.textContent = `Fehler: ${ergebnis.detail}`; return; }
+  status.textContent = '';
+  e.target.reset();
+  e.target.hidden = true;
+  ladeTeilnehmer();
 });

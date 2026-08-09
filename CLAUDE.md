@@ -11,18 +11,21 @@ schickt pro Phase einen KI-Agenten (Claude Code headless, Kimi als Fallback) mit
 einem klaren Arbeitsauftrag los. Der Agent folgt dem Skill `skill/schulung/`.
 Mit dem Schalter „KI-Medien = Nein" läuft alles ohne Higgsfield (0 Credits).
 Öffentliches Repo (AGPL-3.0): github.com/Audiojoy72/SmartCon-Schulungen.
-Pflichtenheft mit allen 14 Grundsatz-Entscheidungen: `SPEC.md`.
+Pflichtenheft mit allen 16 Grundsatz-Entscheidungen: `SPEC.md`.
 
 ## Tech Stack
 
 Details in `TECH_STACK.md`. Kern: Python 3.11 + FastAPI + uvicorn, Frontend
-Vanilla JS ohne Build, kein DB (Dateisystem), Docker als empfohlener Betrieb.
+Vanilla JS ohne Build, SQLite (`data/kurse.db`) für Kursverwaltung/Portal neben
+dem Dateisystem (`config.json`, `projects/<slug>/`), Docker als empfohlener
+Betrieb.
 
 ## Commands
 
 ```sh
 # Betrieb (empfohlen)
 touch config-logo.png                             # sonst legt Docker dort ein Verzeichnis an
+mkdir -p data                                    # einmalig, vor dem ersten Start
 docker compose build && docker compose up -d     # App auf Port 8710
 
 # Entwicklung ohne Docker
@@ -45,15 +48,18 @@ und End-to-End-Testprojekte für alles, was einen echten Agentenlauf braucht.
 
 ```
 app/            FastAPI-Backend (main, runner, projekte, prompts, preflight,
-                curriculum, higgsfield, config, praesentation, pruefung, folien)
+                curriculum, higgsfield, config, praesentation, pruefung, folien,
+                db, zugang, teilnehmer, versuche, portal, portal_routes,
+                verwaltung)
 static/         Frontend (index.html, app.js, style.css)
 skill/schulung/ der neutrale Schulungs-Skill (SKILL.md, reference/styles/,
                 reference/design-vorlage.md, scripts/, assets/)
 tests/          pytest-Suite für app/ (kein Test-Framework fürs Frontend)
 projects/       Projektordner je Schulung (gitignored, Nutzdaten)
+data/           SQLite der Kursverwaltung (gitignored, Kundendaten)
 config.json     Einstellungen + Zugangsdaten (gitignored)
 docs/           Screenshots für die README
-SPEC.md         Pflichtenheft (14 Entscheidungen)
+SPEC.md         Pflichtenheft (16 Entscheidungen)
 TECH_STACK.md   Technik-Überblick inkl. „Bekannte Fallen"
 Dockerfile, docker-compose.yml
 ```
@@ -83,6 +89,16 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
 - **Kosten-Disziplin:** Curriculum ist immer gratis; vor der Produktion
   Kostenplan (`kosten.json`) + Guthaben-Abgleich; Preflight vor jeder
   kostenpflichtigen Aktion.
+- **Zwei Bereiche, zwei Schutzmechanismen.** Die Werkstatt (Projekte,
+  Präsentationen, Einstellungen) liegt hinter dem vorgelagerten
+  Zugriffsschutz. Das Portal unter `/portal` schützt sich selbst über
+  scrypt-Passwörter und Sitzungscookies — Kunden haben dort keine Konten.
+- **Die Prüfung im Portal wird serverseitig ausgewertet.** `versuche.auswerten()`
+  liest die richtigen Antworten aus `projects/<slug>/pruefung.json`; sie gehen
+  nie an den Browser. Die verschickbare Prüfungsseite aus
+  `pruefung.als_html()` ist etwas anderes: Sie wertet im Browser aus und
+  bringt ihre Lösungen mit — das ist für eine Datei zum Weitergeben richtig
+  und für einen Nachweis untauglich. Die beiden nie verwechseln.
 
 ## Code Patterns
 
@@ -110,6 +126,7 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
 | `app/prompts.py` | alle Arbeitsaufträge an den Agenten |
 | `skill/schulung/SKILL.md` | der 11-Phasen-Workflow (Source of Truth fachlich) |
 | `config.json` | Backend-Wahl, Whisper-API, Keys — niemals committen |
+| `app/portal_routes.py` | alle `/portal`-Routen: Login, Sitzungscookie, Lernen, Prüfung, Zertifikat — der selbstgeschützte zweite Bereich |
 | `SPEC.md` | warum die App so ist, wie sie ist |
 
 ## Notes / Gotchas
@@ -143,3 +160,16 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
   nicht Verzeichnis). Fehlt die Datei auf dem Host beim ersten `docker compose
   up`, legt Docker an der Stelle ein Verzeichnis an — danach schlägt jeder
   Logo-Upload fehl. Vor dem ersten Start: `touch config-logo.png`.
+- `data/kurse.db` enthält Kundendaten und ist gitignored. Ein `rm -rf data/`
+  löscht alle Teilnehmer, Zugänge und Prüfungsergebnisse — es gibt keinen
+  Papierkorb. Sicherung im laufenden Betrieb:
+  `sqlite3 data/kurse.db ".backup data/kurse-$(date +%F).db"`
+- Der Ordner `data/` muss vor dem ersten `docker compose up` existieren
+  (`mkdir -p data`), sonst legt Docker ihn als root an und die App kann nicht
+  schreiben.
+- `portal_secure_cookie` steht im Betrieb auf `true`. Für die Entwicklung über
+  `http://localhost` muss es auf `false`, sonst schickt der Browser das
+  Sitzungscookie nicht zurück und die Anmeldung wirkt, als hätte sie nicht
+  gegriffen. **Vor dem Betrieb zurückstellen.**
+- Ein Teilnehmer-Passwort ist nach der Anzeige nicht mehr abrufbar — gespeichert
+  ist nur der scrypt-Hash. Verloren heißt: neu freischalten.

@@ -23,6 +23,9 @@ DEFAULTS = {
     # Default aus: LAN-Zugriff hat keinen Login, und der Agent arbeitet mit
     # Bash-Rechten — bewusst zuschalten statt versehentlich offen stehen.
     "lan_erreichbar": False,       # True = im LAN erreichbar (0.0.0.0), False = nur localhost
+    # Portal-Cookie nur über HTTPS senden. Für die Entwicklung über
+    # http://localhost abschaltbar — im Betrieb bleibt es an.
+    "portal_secure_cookie": True,
 }
 
 

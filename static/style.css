@@ -429,3 +429,17 @@ footer a:hover { color: var(--ok); border-bottom-color: var(--ok); }
   color: var(--text);
 }
 .download[hidden] { display: none; }
+
+/* --- Teilnehmer --- */
+
+.passwort {
+  font-family: ui-monospace, monospace;
+  font-size: 22px;
+  letter-spacing: .08em;
+  user-select: all;
+  word-break: break-all;
+}
+.passwort[hidden] { display: none; }
+
+.teilnahmen { margin: 10px 0; }
+.teilnahmen[hidden] { display: none; }

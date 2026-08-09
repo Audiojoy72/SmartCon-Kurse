@@ -14,7 +14,7 @@ Spätere Veröffentlichung als Public-Repo auf GitHub, Lizenz **AGPL**, Doku deu
 selbstbeschreibend. Footer der App: **„AI-SmartCon – Matthias Geist"** und
 **„Danke an Julian Ivanov für den tollen Skill"**.
 
-## Die 14 Entscheidungen
+## Die 16 Entscheidungen
 
 | # | Frage | Entscheidung |
 |---|---|---|
@@ -32,6 +32,8 @@ selbstbeschreibend. Footer der App: **„AI-SmartCon – Matthias Geist"** und
 | 12 | Einstellungen | **Settings-Screen + Preflight-Ampel** (Backend-Wahl, Pfade, Higgsfield-Workspace, Default-design.md), gespeichert als `config.json` |
 | 13 | Nicht-Ziele v1 | kein Mehrnutzer, kein Login, kein Deployment; kein Budget-Deckel; keine strukturierte Curriculum-Bearbeitung; kein Zertifikat; keine eigenen Generatoren; kein SCORM/LMS |
 | 14 | History | **Projektliste = Archiv**: fertige Schulungen bleiben gelistet (Status, Datum, Credits); HTML im Projektordner, aus der History **aufrufbar und herunterladbar**; **Nachbearbeiten** = Rücksprung in eine Phase über App+Agent (nicht: HTML direkt editieren), mit Kosten-Hinweis bei produktionsrelevanten Änderungen |
+| 15 | Prüfung im Portal | **Serverseitige Auswertung.** Die richtigen Antworten stehen in `pruefung.json` und verlassen den Server nicht. Drei Versuche je Teilnahme, Zählung in `data/kurse.db`. Die verschickbare Prüfungsseite (`pruefung.als_html()`) bleibt daneben bestehen — sie hat einen anderen Zweck und darf ihre Lösungen mitbringen |
+| 16 | Nachweis | **Druckbare HTML-Seite, kein serverseitiges PDF.** Bezeichnung aus der Teilnahme: „Teilnahmebestätigung", bei bestandener Prüfung „AI-SmartCon-Zertifikat". **Nie** „staatlich anerkannt", kein AZAV, kein Bildungsgutschein — Erwachsenenbildung ist erlaubnisfrei, AI-SmartCon stellt in eigenem Namen aus |
 
 ## Architektur in einem Bild
 
