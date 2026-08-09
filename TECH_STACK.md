@@ -1,6 +1,6 @@
 # Tech Stack — SmartCon-Kurse
 
-Stand 2026-08-01. Verbindliches Pflichtenheft: [SPEC.md](SPEC.md).
+Stand 2026-08-09. Verbindliches Pflichtenheft: [SPEC.md](SPEC.md).
 
 ## Sprachen & Runtimes
 
@@ -30,7 +30,12 @@ Stand 2026-08-01. Verbindliches Pflichtenheft: [SPEC.md](SPEC.md).
 | `zugang.py` | Passwörter (scrypt), Sitzungstoken — ohne Datenbank- oder HTTP-Bezug |
 | `teilnehmer.py` | Teilnehmer, Teilnahmen, Freischaltung, Anmeldung, Sitzungsprüfung |
 | `versuche.py` | Prüfungsversuche zählen, auswerten, gegen `pruefung.json` prüfen |
-| `verwaltung.py` | `/api/verwaltung/…`-Routen: Teilnehmer anlegen, zuordnen, freischalten |
+| `verwaltung.py` | `/api/verwaltung/…`-Routen: Teilnehmer, Kurse, Serien, Termine, Anmeldungen — die Innensicht hinter dem Zugriffsschutz |
+| `kurse.py` | Kurse, Terminserien, Termine. `naechste_offene()` ist die einzige Funktion für die Öffentlichkeit und liefert **nie** Platzzahlen |
+| `anmeldung.py` | Anmeldungen entgegennehmen; Platzprüfung in `BEGIN IMMEDIATE`; `zu_teilnehmer()` als Brücke zum Portalzugang |
+| `anmeldung_seiten.py` | die öffentlichen Seiten als HTML — reine Funktionen von Daten zu HTML, ohne Server testbar |
+| `anmeldung_routes.py` | die drei öffentlichen Wege samt Rate-Bremse (5/Stunde je Absender, zählt nur Erfolge) |
+| `mail.py` | SMTP-Versand und Vorlagen; kennt weder Datenbank noch HTTP |
 | `portal.py` | HTML-Seiten des Teilnehmer-Portals (reine Funktionen, kein Server) |
 | `portal_routes.py` | `/portal/…`-Routen: Login, Kursliste, Lerneinheit, Prüfung, Zertifikat |
 
@@ -104,6 +109,8 @@ er funktioniert aber auch ohne App in jeder Agenten-Session.
 | `ffmpeg` | Tempoanpassung (atempo), Muxing, Kompression | nur KI-Medien = Ja |
 | Whisper lokal oder OpenAI-kompatible API (`/v1/audio/transcriptions`, verbose_json + Wort-Zeitstempel; optional Cloudflare-Access-Header) | Transkription → Beat-Choreografie | nur mit Voiceover |
 | Node 22 + HyperFrames | gerenderte Erklär-Videos (optional; HTML-Szenen sind Standard) | optional |
+| SMTP (All-Inkl, `w007c852.kasserver.com:587` STARTTLS) | Anmeldebestätigung und Zugangsmail, Absender `kurse@ai-smartcon.de` | nur für die Anmeldestrecke |
+| `cloudflared` | eigener Tunnel `smartcon-kurse` für `kurse.smartcon-ai.de`; routet **nur** `/anmeldung*` und `/portal*` | nur für den Außenzugang |
 
 **Kostenrelevant (Higgsfield-Credits, Stand 2026-08-01):** 9/s Video (1080p) ·
 ~4/~2 pro Bild · ~1,5 pro Voiceover · 2 Upscale · 1 Freisteller · HyperFrames,
@@ -119,6 +126,16 @@ gesamt.**
 - Die App hat kein Login — LAN-Freigabe (Default aus) nur in vertrauten Netzen.
   Wer die App erreicht, kann über Briefing- oder Kommentartext Agenten-Läufe mit
   Bash-Rechten auslösen (`--permission-mode acceptEdits`)
+- **Drei Bereiche, drei Schutzmodelle:** Werkstatt (über den Tunnel gar nicht
+  geroutet), Portal (`/portal*`, scrypt + Sitzungscookie), Anmeldung
+  (`/anmeldung*`, öffentlich). Die Grenze liegt im Routing, nicht in einer
+  Policy davor — siehe `~/.cloudflared/smartcon-kurse.yml`
+- **Nach außen nie Zahlen:** `kurse.naechste_offene()` baut ein reduziertes
+  Dict, die Platzzahl kann die Seitenfunktion gar nicht erreichen
+- Prüfungslösungen verlassen den Server nicht; die verschickbare
+  Prüfungs-HTML ist bewusst etwas anderes und für Nachweise untauglich
+- Kundendaten in `data/kurse.db` (gitignored), tägliche Sicherung per Cron mit
+  Integritätsprüfung, 30 Tage Aufbewahrung
 
 ## Bekannte Fallen (harte Lernerfahrungen)
 

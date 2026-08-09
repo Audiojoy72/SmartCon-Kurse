@@ -37,6 +37,14 @@ Danke an **Julian Ivanov** für den tollen Skill.
   herunterladen; Nachbearbeiten per Phasen-Rücksprung; Löschen mit Rückfrage
 - **System-Check**: prüft alle Abhängigkeiten live — jede Kachel ist anklickbar und
   zeigt eine Schritt-für-Schritt-Installationsanleitung
+- **Kurse, Termine und Anmeldung**: Kurse mit Preis, Plätzen und Terminserien
+  pflegen; Interessenten melden sich selbst an und bekommen eine
+  Bestätigungsmail; aus einer bezahlten Anmeldung wird per Klick ein Teilnehmer
+  mit Portalzugang. Öffentlich sichtbar ist nie eine Platzzahl, nur „offen" oder
+  „ausgebucht"
+- **Teilnehmer-Portal mit Nachweis**: Lerneinheit, serverseitig ausgewertete
+  Prüfung (drei Versuche) und ein druckbarer Nachweis — Zertifikat bei
+  bestandener Prüfung, sonst Teilnahmebestätigung
 - **Auch vom Handy bedienbar**: die Oberfläche ist auf schmale Displays ausgelegt,
   die Projektliste aktualisiert sich während eines Laufs von selbst — man kann die
   Seite verlassen und später wieder reinschauen, der Agent läuft im Server weiter
@@ -52,8 +60,10 @@ Danke an **Julian Ivanov** für den tollen Skill.
 
 ## Status
 
-Produktiv im Eigenbetrieb, frühe öffentliche Version. Das verbindliche
-Pflichtenheft steht in [SPEC.md](SPEC.md), der Technik-Überblick in
+Produktiv im Eigenbetrieb, privates Repo. Die Anmeldung ist seit dem
+09.08.2026 öffentlich erreichbar unter
+**https://kurse.smartcon-ai.de/anmeldung**. Das verbindliche Pflichtenheft
+steht in [SPEC.md](SPEC.md), der Technik-Überblick in
 [TECH_STACK.md](TECH_STACK.md).
 
 ## Screenshots

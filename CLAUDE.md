@@ -39,6 +39,10 @@ python3 -m venv .venv
 .venv/bin/python -m py_compile app/*.py
 node --check static/app.js
 bash -n skill/schulung/scripts/*.sh
+
+# Betrieb
+bash scripts/backup-kurse-db.sh          # Datenbank sichern (laeuft taeglich per Cron)
+systemctl status cloudflared-smartcon-kurse   # Tunnel fuer kurse.smartcon-ai.de
 ```
 
 pytest für die Logik (`tests/`), dazu der System-Check der App (`GET /api/preflight`)
@@ -47,18 +51,24 @@ und End-to-End-Testprojekte für alles, was einen echten Agentenlauf braucht.
 ## Project Structure
 
 ```
-app/            FastAPI-Backend (main, runner, projekte, prompts, preflight,
-                curriculum, higgsfield, config, praesentation, pruefung, folien,
-                db, zugang, teilnehmer, versuche, portal, portal_routes,
-                verwaltung)
+app/            FastAPI-Backend
+                Werkstatt: main, runner, projekte, prompts, preflight,
+                  curriculum, higgsfield, config, praesentation, pruefung,
+                  folien, verwaltung
+                Portal:    db, zugang, teilnehmer, versuche, portal,
+                  portal_routes
+                Verkauf:   kurse, anmeldung, anmeldung_seiten,
+                  anmeldung_routes, mail
 static/         Frontend (index.html, app.js, style.css)
 skill/schulung/ der neutrale Schulungs-Skill (SKILL.md, reference/styles/,
                 reference/design-vorlage.md, scripts/, assets/)
+scripts/        Betriebsskripte (Datenbank-Sicherung, Cloudflare-Weiterleitung)
 tests/          pytest-Suite für app/ (kein Test-Framework fürs Frontend)
 projects/       Projektordner je Schulung (gitignored, Nutzdaten)
-data/           SQLite der Kursverwaltung (gitignored, Kundendaten)
+data/           SQLite der Kursverwaltung + Sicherungen (gitignored, Kundendaten)
 config.json     Einstellungen + Zugangsdaten (gitignored)
-docs/           Screenshots für die README
+docs/           Screenshots für die README, dazu superpowers/plans/ als
+                Zeitdokumente der Etappen
 SPEC.md         Pflichtenheft (16 Entscheidungen)
 TECH_STACK.md   Technik-Überblick inkl. „Bekannte Fallen"
 Dockerfile, docker-compose.yml
@@ -151,7 +161,10 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
 | `app/prompts.py` | alle Arbeitsaufträge an den Agenten |
 | `skill/schulung/SKILL.md` | der 11-Phasen-Workflow (Source of Truth fachlich) |
 | `config.json` | Backend-Wahl, Whisper-API, Keys — niemals committen |
-| `app/portal_routes.py` | alle `/portal`-Routen: Login, Sitzungscookie, Lernen, Prüfung, Zertifikat — der selbstgeschützte zweite Bereich |
+| `app/portal_routes.py` | alle `/portal`-Routen: Login, Sitzungscookie, Lernen, Prüfung, Nachweis — der selbstgeschützte zweite Bereich |
+| `app/anmeldung_routes.py` | die drei öffentlichen Wege samt Rate-Bremse — der ungeschützte dritte Bereich |
+| `app/anmeldung.py` | Platzprüfung in `BEGIN IMMEDIATE` und die Brücke von der bezahlten Anmeldung zum Teilnehmer |
+| `~/.cloudflared/smartcon-kurse.yml` | die Ingress-Regel, die die Werkstatt draußen hält (nicht im Repo) |
 | `SPEC.md` | warum die App so ist, wie sie ist |
 
 ## Notes / Gotchas
