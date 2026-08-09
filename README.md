@@ -140,10 +140,55 @@ Fertige Schulungen lassen sich an Teilnehmer ausgeben. Der Weg:
 5. Bei Bestehen gibt es den Nachweis als druckbare Seite.
 
 Die Prüfung wird **auf dem Server** ausgewertet; die richtigen Antworten
-verlassen ihn nicht. Die Daten liegen in `data/kurse.db` (gitignored) und
-gehören ins Backup:
+verlassen ihn nicht. Die Daten liegen in `data/kurse.db` (gitignored); ein
+Cron sichert sie täglich (`scripts/backup-kurse-db.sh`, 30 Tage).
 
-    sqlite3 data/kurse.db ".backup data/kurse-$(date +%F).db"
+**Welchen Nachweis es gibt, entscheidet der Kurs.** „AI-SmartCon-Zertifikat"
+heißt: mit Prüfung, Nachweis erst nach Bestehen. „Teilnahmebestätigung" heißt:
+ohne Prüfung, Nachweis ab der Freischaltung — der Ausdruck sagt dann „hat
+teilgenommen" statt „hat erfolgreich abgeschlossen". Nie „staatlich
+anerkannt", kein AZAV, kein Bildungsgutschein: Erwachsenenbildung ist
+erlaubnisfrei, AI-SmartCon stellt in eigenem Namen aus.
+
+## Anmeldung und Kurse
+
+Der Weg vom Interessenten zum Teilnehmer, ohne Handarbeit an der Datenbank:
+
+1. **Kurs anlegen** (Reiter „Kurse"): Kürzel, Titel, Preis, Plätze, die
+   zugehörige Schulung und die Nachweis-Bezeichnung.
+2. **Termine erzeugen** — Wochentag, Uhrzeit und Rhythmus ergeben eine Serie,
+   daraus werden die Termine der nächsten 26 Wochen angelegt. Ein Kurs ohne
+   Serie ist terminloses E-Learning und jederzeit buchbar.
+3. **Der Interessent meldet sich selbst an** unter `/anmeldung/<kürzel>` und
+   bekommt eine Bestätigungsmail. Öffentlich sichtbar ist nie eine Platzzahl,
+   nur „offen" oder „ausgebucht".
+4. **Rechnung stellen** (von Hand), dann im Reiter „Anmeldungen" auf
+   `bezahlt` setzen.
+5. **„Zugang freischalten"** macht daraus einen Teilnehmer mit Portalzugang
+   und schickt die Zugangsdaten per Mail. Das Passwort erscheint zusätzlich
+   **einmal** im Kasten oben — danach ist es nicht mehr abrufbar.
+
+Der Mailversand läuft über SMTP aus der `config.json` (`smtp_host`,
+`smtp_port`, `smtp_user`, `smtp_passwort`, `smtp_von`, `portal_url`). Ohne
+diese Werte funktioniert die Anmeldung weiter, nur ohne Mail — die Kachel
+„Mailversand" im System-Check zeigt das an.
+
+## Erreichbarkeit von außen
+
+Öffentlich sind **nur** `/anmeldung*` und `/portal*`. Die Werkstatt wird über
+den Tunnel gar nicht erst geroutet — sie startet Agenten mit Bash-Rechten und
+gehört ins Hausnetz. Die Regel steht in `~/.cloudflared/config.yml`:
+
+```yaml
+  - hostname: kurse.smartcon-ai.de
+    path: ^/(anmeldung|portal)(/.*)?$
+    service: http://localhost:8710
+  - hostname: kurse.smartcon-ai.de
+    service: http_status:404
+```
+
+Nach jeder Änderung daran aus einem **fremden** Netz gegenprüfen:
+`/anmeldung` muss 200 liefern, `/api/projekte` 404.
 
 ## Architektur in Kürze
 

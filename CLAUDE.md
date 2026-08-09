@@ -89,10 +89,22 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
 - **Kosten-Disziplin:** Curriculum ist immer gratis; vor der Produktion
   Kostenplan (`kosten.json`) + Guthaben-Abgleich; Preflight vor jeder
   kostenpflichtigen Aktion.
-- **Zwei Bereiche, zwei Schutzmechanismen.** Die Werkstatt (Projekte,
-  Präsentationen, Einstellungen) liegt hinter dem vorgelagerten
-  Zugriffsschutz. Das Portal unter `/portal` schützt sich selbst über
-  scrypt-Passwörter und Sitzungscookies — Kunden haben dort keine Konten.
+- **Drei Bereiche, drei Schutzmodelle.**
+
+  | Bereich | Pfade | Schutz |
+  |---|---|---|
+  | Werkstatt | `/`, `/api/projekte*`, `/api/praesentationen*`, `/api/verwaltung*`, `/api/config*` | **gar nicht erreichbar von außen** — der Tunnel routet diese Pfade nicht |
+  | Portal | `/portal*` | eigenes Login, scrypt + Sitzungscookie |
+  | Anmeldung | `/anmeldung*` | keiner — öffentlich, das ist der Zweck |
+
+  Der Schutz der Werkstatt liegt in `~/.cloudflared/config.yml`: Die
+  Ingress-Regel für `kurse.smartcon-ai.de` hat ein
+  `path: ^/(anmeldung|portal)(/.*)?$`, alles andere fällt auf
+  `http_status:404`. **Wer diese Regel weicher macht, legt die Werkstatt
+  offen — und die startet Agenten mit Bash-Rechten.** Nach jeder Änderung
+  gegenprüfen, aus einem fremden Netz, nicht aus dem Hausnetz:
+  `curl -o /dev/null -w '%{http_code}\n' https://kurse.smartcon-ai.de/api/projekte`
+  muss 404 liefern, `/anmeldung` 200.
 - **Die Prüfung im Portal wird serverseitig ausgewertet.** `versuche.auswerten()`
   liest die richtigen Antworten aus `projects/<slug>/pruefung.json`; sie gehen
   nie an den Browser. Die verschickbare Prüfungsseite aus
@@ -170,8 +182,12 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
   Logo-Upload fehl. Vor dem ersten Start: `touch config-logo.png`.
 - `data/kurse.db` enthält Kundendaten und ist gitignored. Ein `rm -rf data/`
   löscht alle Teilnehmer, Zugänge und Prüfungsergebnisse — es gibt keinen
-  Papierkorb. Sicherung im laufenden Betrieb:
-  `sqlite3 data/kurse.db ".backup data/kurse-$(date +%F).db"`
+  Papierkorb. **Ein Cron sichert täglich um 3:40 Uhr**
+  (`scripts/backup-kurse-db.sh`, 30 Tage Aufbewahrung, Ziel `data/backups/`,
+  Log unter `~/odysseus/logs/smartcon-kurse-backup.log`). Von Hand im
+  laufenden Betrieb: `bash scripts/backup-kurse-db.sh`. Zurückspielen heißt
+  schlicht: Container stoppen, die gewünschte Datei über `data/kurse.db`
+  kopieren, Container starten.
 - Der Ordner `data/` muss vor dem ersten `docker compose up` existieren
   (`mkdir -p data`), sonst legt Docker ihn als root an und die App kann nicht
   schreiben.
@@ -181,3 +197,10 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
   gegriffen. **Vor dem Betrieb zurückstellen.**
 - Ein Teilnehmer-Passwort ist nach der Anzeige nicht mehr abrufbar — gespeichert
   ist nur der scrypt-Hash. Verloren heißt: neu freischalten.
+- `proxy_kopf_vertrauen` gehört auf `true`, **sobald der Tunnel steht** — sonst
+  sieht die App nur dessen Adresse und die Rate-Bremse (5 Anmeldungen je
+  Stunde) zählt alle Interessenten auf einen Topf. Umgekehrt gilt genauso
+  strikt: **vorher nicht** auf `true`, sonst kann jeder die Bremse mit einem
+  selbstgesetzten `CF-Connecting-IP` abschalten.
+- `portal_url` steht in jeder Zugangsmail. Nach einem Domainwechsel mit
+  ändern, sonst schickt die Mail die Teilnehmer an die alte Adresse.
