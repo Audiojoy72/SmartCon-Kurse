@@ -8,9 +8,13 @@ nach Zahlungseingang zu einem Teilnehmer mit Portalzugang machen.
 import sqlite3
 from datetime import datetime, timezone
 
-from . import db, kurse, teilnehmer
+from . import db, teilnehmer
 
 STATUS = ("neu", "bestaetigt", "bezahlt", "storniert")
+# Serverseitige Deckel. Die maxlength-Attribute im Formular sind Bequemlichkeit,
+# keine Grenze — ein direkter POST kennt sie nicht.
+MAX_NAME = 120
+MAX_FIRMA = 120
 MAX_NACHRICHT = 2000
 
 
@@ -64,6 +68,11 @@ def annehmen(kurs_id: int, termin_id: int | None, name: str, email: str,
     name = name.strip()
     if not name:
         raise AnmeldungFehler("Name fehlt")
+    if len(name) > MAX_NAME:
+        raise AnmeldungFehler("Der Name ist zu lang")
+    firma = firma.strip()
+    if len(firma) > MAX_FIRMA:
+        raise AnmeldungFehler("Der Firmenname ist zu lang")
     email = _email_normalisieren(email)
     if len(nachricht) > MAX_NACHRICHT:
         raise AnmeldungFehler("Die Nachricht ist zu lang")
@@ -105,7 +114,7 @@ def annehmen(kurs_id: int, termin_id: int | None, name: str, email: str,
         cur = conn.execute(
             "INSERT INTO anmeldung (termin_id, kurs_id, name, email, firma, "
             "nachricht, angelegt_am) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (termin_id, kurs_id, name, email, firma.strip(), nachricht,
+            (termin_id, kurs_id, name, email, firma, nachricht,
              _jetzt()))
         conn.execute("COMMIT")
         return cur.lastrowid
@@ -142,9 +151,16 @@ def status_setzen(anmeldung_id: int, status: str) -> None:
 
 
 def liste(status: str | None = None) -> list[dict]:
-    """Alle Anmeldungen, neueste zuerst, mit `kurs_titel` und `beginn`."""
+    """Alle Anmeldungen, neueste zuerst, mit `kurs_titel`, `beginn` und
+    `termin_status`.
+
+    `termin_status` muss mit: Sonst sieht die Verwaltung einer Anmeldung
+    nicht an, dass ihr Termin abgesagt wurde, und schaltet den Zugang guten
+    Gewissens frei.
+    """
     sql = (
-        "SELECT anmeldung.*, kurs.titel AS kurs_titel, termin.beginn AS beginn "
+        "SELECT anmeldung.*, kurs.titel AS kurs_titel, termin.beginn AS beginn, "
+        "termin.status AS termin_status "
         "FROM anmeldung "
         "LEFT JOIN kurs ON kurs.id = anmeldung.kurs_id "
         "LEFT JOIN termin ON termin.id = anmeldung.termin_id"

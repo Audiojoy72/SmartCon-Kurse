@@ -1208,6 +1208,9 @@ async function ladeAnmeldungen() {
       ${a.firma ? `<span class="muted"> · ${esc(a.firma)}</span>` : ''}
       <span class="badge">${esc(a.status)}</span>
       <p class="muted">${esc(a.kurs_titel)}${a.beginn ? ' · ' + esc(datumZeit(a.beginn)) : ' · ohne Termin'}</p>
+      ${a.termin_status && a.termin_status !== 'offen'
+        ? `<p class="warnhinweis">Termin ${a.termin_status === 'abgesagt' ? 'abgesagt' : 'geschlossen'} — vor dem Freischalten klären.</p>`
+        : ''}
       ${a.nachricht ? `<p>${esc(a.nachricht)}</p>` : ''}
       <div class="zeile">
         <select data-status="${a.id}">
