@@ -209,3 +209,13 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
   selbstgesetzten `CF-Connecting-IP` abschalten.
 - `portal_url` steht in jeder Zugangsmail. Nach einem Domainwechsel mit
   ändern, sonst schickt die Mail die Teilnehmer an die alte Adresse.
+- **Die nackte Domain liefert 404, und das ist richtig** — unter `/` liegt die
+  Werkstatt, der Tunnel routet sie nicht. Die öffentliche Adresse ist
+  `https://kurse.smartcon-ai.de/anmeldung`. Damit ein Kunde, der nur die
+  Domain eintippt, trotzdem ankommt, gibt es eine Cloudflare-Redirect-Rule
+  eine Ebene vor dem Tunnel: `scripts/cf-weiterleitung-wurzel.sh`. Sie braucht
+  einen Token mit `Zone → Zone WAF/Rules → Edit` in
+  `~/.cloudflared/smartcon-ai-api-token` — der Token aus `cert.pem` reicht
+  nicht, der darf nur DNS. **Niemals stattdessen `/` durch den Tunnel lassen**:
+  dann entscheidet eine Host-Kopfzeile darüber, ob die Werkstatt ausgeliefert
+  wird, und die ist fälschbar.
