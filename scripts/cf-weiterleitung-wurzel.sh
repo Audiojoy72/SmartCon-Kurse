@@ -20,15 +20,26 @@
 # /anmeldung umleiten und eine Endlosschleife bauen.
 set -euo pipefail
 
+# Zwei Wege, je nachdem was hinterlegt ist:
+#  1. Global API Key — zwei Zeilen (Mailadresse, Schluessel), kann alles
+#  2. eingeschraenkter Token — eine Zeile, braucht "Dynamic Redirect -> Edit"
+GLOBAL_DATEI="$HOME/.cloudflared/smartcon-ai-global-key"
 TOKEN_DATEI="$HOME/.cloudflared/smartcon-ai-api-token"
 ZONE=6ef4c1d94d813010cb8f6682e962d963   # smartcon-ai.de
 HOST=kurse.smartcon-ai.de
 ZIEL="https://kurse.smartcon-ai.de/anmeldung"
 
-[ -s "$TOKEN_DATEI" ] || { echo "Kein Token in $TOKEN_DATEI"; exit 1; }
-TOKEN=$(tr -d '[:space:]' < "$TOKEN_DATEI")
-
-api() { curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" "$@"; }
+if [ -s "$GLOBAL_DATEI" ]; then
+  MAIL=$(sed -n 1p "$GLOBAL_DATEI" | tr -d '[:space:]')
+  KEY=$(sed -n 2p "$GLOBAL_DATEI" | tr -d '[:space:]')
+  api() { curl -s -H "X-Auth-Email: $MAIL" -H "X-Auth-Key: $KEY" \
+               -H "Content-Type: application/json" "$@"; }
+elif [ -s "$TOKEN_DATEI" ]; then
+  TOKEN=$(tr -d '[:space:]' < "$TOKEN_DATEI")
+  api() { curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" "$@"; }
+else
+  echo "Weder $GLOBAL_DATEI noch $TOKEN_DATEI gefuellt"; exit 1
+fi
 
 echo "Pruefe den Token …"
 api "https://api.cloudflare.com/client/v4/zones/$ZONE/rulesets/phases/http_request_dynamic_redirect/entrypoint" \

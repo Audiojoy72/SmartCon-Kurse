@@ -214,9 +214,14 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
   `https://kurse.smartcon-ai.de/anmeldung`. Damit ein Kunde, der nur die
   Domain eintippt, trotzdem ankommt, gibt es eine Cloudflare-Redirect-Rule
   eine Ebene vor dem Tunnel: `scripts/cf-weiterleitung-wurzel.sh`. Sie braucht
-  einen Token mit `Zone → Dynamic Redirect → Edit` in
-  `~/.cloudflared/smartcon-ai-api-token` — der Token aus `cert.pem` reicht
-  nicht (nur DNS), und `Zone WAF → Edit` ist die falsche Gruppe (damit gehen
-  Firewall-Regeln, nicht Redirect Rules). **Niemals stattdessen `/` durch den Tunnel lassen**:
+  Cloudflare-Zugang. Hinterlegt ist der **Global API Key** in
+  `~/.cloudflared/smartcon-ai-global-key` (Zeile 1 Mailadresse, Zeile 2
+  Schlüssel, chmod 600) — der authentifiziert über `X-Auth-Email` und
+  `X-Auth-Key`, **nicht** über `Bearer`. Alternativ liest das Skript einen
+  eingeschränkten Token aus `~/.cloudflared/smartcon-ai-api-token`; der
+  braucht dann `Zone → Dynamic Redirect → Edit`. Zwei Fallen dabei: der Token
+  aus `cert.pem` darf nur DNS, und `Zone WAF → Edit` ist die falsche Gruppe.
+  Woran man es erkennt: die erlaubte Phase meldet `could not find entrypoint
+  ruleset`, die verbotene `request is not authorized`. **Niemals stattdessen `/` durch den Tunnel lassen**:
   dann entscheidet eine Host-Kopfzeile darüber, ob die Werkstatt ausgeliefert
   wird, und die ist fälschbar.
