@@ -1,4 +1,4 @@
-# SmartCon-Schulungen
+# SmartCon-Kurse
 
 Interaktive Schulungen per Formular-App erstellen: Eine lokale Web-Oberfläche führt
 Schritt für Schritt vom Briefing über das Curriculum (mit Freigabe-Gate) bis zur

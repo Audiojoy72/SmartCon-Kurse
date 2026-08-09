@@ -125,7 +125,7 @@ Das Voiceover-Skript je Level wird als Sprechertext/Bildschirmtext der Szene
 ausformuliert (nicht gestrichen). Die Produktionsschätzung lautet 0 Credits.
 """
         abschluss_mix = "Level-Anzahl und die Bestätigung, dass alle Level medienlos (0 Credits) geplant sind"
-    return f"""Du bist der Schulungs-Agent der App „SmartCon-Schulungen". Dein
+    return f"""Du bist der Schulungs-Agent der App „SmartCon-Kurse". Dein
 Arbeitsverzeichnis ist der Projektordner: {projekt_dir}
 
 Lies zuerst diese Skill-Anleitung vollständig: {SKILL_MD}
@@ -197,7 +197,7 @@ def kostenplan_prompt(projekt_dir: Path) -> str:
   "summe": 0.0
 }
 """
-    return f"""Du bist der Kostenplan-Agent der App „SmartCon-Schulungen". Dein
+    return f"""Du bist der Kostenplan-Agent der App „SmartCon-Kurse". Dein
 Arbeitsverzeichnis ist der Projektordner: {projekt_dir}
 
 Lies die Datei {projekt_dir / 'curriculum.md'} (insbesondere Medienplan und
@@ -394,7 +394,7 @@ Das hat drei harte Konsequenzen:
 4. Auslieferung (Phase 11): Die fertige HTML-Datei bleibt im Projektordner
    ({projekt_dir}). NICHT irgendwo hochladen — kein rclone, kein
    Filesharing-Dienst, kein externer Ablageort."""
-    return f"""Du bist der Produktions-Agent der App „SmartCon-Schulungen". Dein
+    return f"""Du bist der Produktions-Agent der App „SmartCon-Kurse". Dein
 Arbeitsverzeichnis ist der Projektordner: {projekt_dir}
 
 Lies zuerst diese Skill-Anleitung vollständig: {SKILL_MD}
@@ -553,7 +553,7 @@ ausgelieferten Material. Halte dich streng an das, was im Plan steht."""
 - Frage nur ab, was im Curriculum ausformuliert ist — nichts aus eigener
   Kenntnis ergänzen."""
 
-    return f"""Du bist der Prüfungs-Agent der App „SmartCon-Schulungen". Dein
+    return f"""Du bist der Prüfungs-Agent der App „SmartCon-Kurse". Dein
 Arbeitsverzeichnis ist der Projektordner: {projekt_dir}
 
 {grundlage}

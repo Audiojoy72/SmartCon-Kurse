@@ -1,4 +1,4 @@
-"""SmartCon-Schulungen — FastAPI-Hauptmodul.
+"""SmartCon-Kurse — FastAPI-Hauptmodul.
 
 Start: .venv/bin/python -m app.main  →  http://localhost:8710
 """
@@ -37,7 +37,7 @@ async def _lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="SmartCon-Schulungen", version="0.2.0", lifespan=_lifespan)
+app = FastAPI(title="SmartCon-Kurse", version="0.2.0", lifespan=_lifespan)
 
 app.include_router(verwaltung.router)
 app.include_router(portal_routes.router)

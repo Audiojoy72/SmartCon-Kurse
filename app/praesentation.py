@@ -71,7 +71,7 @@ def prompt(projekt_dir: Path, brief: dict, logo_pfad: Path | None) -> str:
 
     ziel = projekt_dir / f"{dateiname_aus_thema(brief.get('thema', ''))}.pptx"
 
-    return f"""Du bist der Präsentations-Agent der App „SmartCon-Schulungen". Dein
+    return f"""Du bist der Präsentations-Agent der App „SmartCon-Kurse". Dein
 Arbeitsverzeichnis ist der Projektordner: {projekt_dir}
 
 ## Auftrag

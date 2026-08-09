@@ -4,13 +4,13 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ## Project Overview
 
-SmartCon-Schulungen ist eine lokale Formular-App, die interaktive Schulungen als
+SmartCon-Kurse ist eine lokale Formular-App, die interaktive Schulungen als
 eine einzige offline lauffähige HTML-Datei erzeugt. Die App besitzt die
 State-Machine (Briefing → Curriculum → Freigabe-Gate → Produktion → fertig) und
 schickt pro Phase einen KI-Agenten (Claude Code headless, Kimi als Fallback) mit
 einem klaren Arbeitsauftrag los. Der Agent folgt dem Skill `skill/schulung/`.
 Mit dem Schalter „KI-Medien = Nein" läuft alles ohne Higgsfield (0 Credits).
-Privates Repo: github.com/Audiojoy72/SmartCon-Schulungen.
+Privates Repo: github.com/Audiojoy72/SmartCon-Kurse.
 Pflichtenheft mit allen 16 Grundsatz-Entscheidungen: `SPEC.md`.
 
 ## Tech Stack
@@ -149,7 +149,7 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
 - Guthaben hat Nachkommastellen („1082.5 credits") — Float parsen.
 - Container-Neustart killt laufende Produktionen — nie rebuilden, während ein
   Agent arbeitet. Muss trotzdem ein Frontend-Fix sofort raus: `docker cp
-  static/app.js smartcon-schulungen:/app/static/app.js` wirkt ohne Neustart
+  static/app.js smartcon-kurse:/app/static/app.js` wirkt ohne Neustart
   (`static/` liegt im Image, nicht als Volume), überlebt aber kein Recreate —
   nach der Produktion `docker compose build` nachziehen.
 - Läuft ein Agent noch? `projects/*/status.json` zeigt die Phase, die letzte

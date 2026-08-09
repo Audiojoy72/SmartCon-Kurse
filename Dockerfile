@@ -1,4 +1,4 @@
-# SmartCon-Schulungen — App-Image
+# SmartCon-Kurse — App-Image
 # Enthält die App plus alle Werkzeuge, die der Agent braucht:
 # claude- & kimi-CLI (Headless-Agenten), higgsfield-CLI (Video/Bild/Voiceover),
 # ffmpeg, Node 22 (HyperFrames), cloudflared + openssh (Transkriptions-Tunnel).

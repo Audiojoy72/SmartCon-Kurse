@@ -109,9 +109,9 @@ def test_dateien_bei_gleicher_mtime_entscheidet_der_name(tmp_path):
     assert praesentation.dateien(tmp_path) == [a, z]
 
 
-def test_prompt_nennt_die_app_smartcon_schulungen(tmp_path):
-    # Konsistenz mit allen anderen Prompts (prompts.py) — die App heißt
-    # SmartCon-Schulungen, nicht SmartCon-Kurse.
+def test_prompt_nennt_die_app_smartcon_kurse(tmp_path):
+    # Konsistenz mit allen anderen Prompts (prompts.py) — die App heißt seit
+    # dem 09.08.2026 SmartCon-Kurse, nicht mehr SmartCon-Schulungen.
     p = praesentation.prompt(tmp_path, BRIEF, None)
-    assert "SmartCon-Schulungen" in p
-    assert "SmartCon-Kurse" not in p
+    assert "SmartCon-Kurse" in p
+    assert "SmartCon-Schulungen" not in p

@@ -1,11 +1,11 @@
-# SmartCon-Schulungen — lokaler Betrieb
+# SmartCon-Kurse — lokaler Betrieb
 # Anmeldungen der CLIs werden vom Host gemountet (nichts Geheimes im Image).
 # Pfade ggf. anpassen ($HOME zeigt auf den aufrufenden Benutzer).
 
 services:
   app:
     build: .
-    container_name: smartcon-schulungen
+    container_name: smartcon-kurse
     ports:
       - "8710:8710"
     extra_hosts:

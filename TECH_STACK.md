@@ -1,4 +1,4 @@
-# Tech Stack — SmartCon-Schulungen
+# Tech Stack — SmartCon-Kurse
 
 Stand 2026-08-01. Verbindliches Pflichtenheft: [SPEC.md](SPEC.md).
 
@@ -77,7 +77,7 @@ Bedienbar auch vom Handy: geprüft bei 390 px und 320 px, kein horizontaler
 | Betrieb ohne Docker | `python3 -m venv .venv && .venv/bin/python -m app.main` |
 | Netz | Port 8710; `lan_erreichbar` in `config.json` → Bind `0.0.0.0` oder `127.0.0.1`, **Default aus**. Kein Login — LAN-Freigabe ist Vertrauenssache |
 | Whisper-Tunnel (Referenz-Setup) | systemd-User-Unit `whisper-tunnel.service` (`ssh -N -L 0.0.0.0:18710:localhost:8000 dsski`), `Restart=always`, Linger |
-| Repo | `github.com/Audiojoy72/SmartCon-Schulungen` (privat, Branch `master`) |
+| Repo | `github.com/Audiojoy72/SmartCon-Kurse` (privat, Branch `master`) |
 
 ## Der Skill (`skill/schulung/`)
 
@@ -139,7 +139,7 @@ gesamt.**
    hochzählen.
 7. **`static/` liegt im Image**, nicht als Volume. Ein Frontend-Fix wird also
    erst durch `docker compose build` dauerhaft. Läuft gerade eine Produktion,
-   ist Bauen tabu — dann `docker cp <datei> smartcon-schulungen:/app/…` in den
+   ist Bauen tabu — dann `docker cp <datei> smartcon-kurse:/app/…` in den
    laufenden Container kopieren (wirkt sofort, überlebt aber kein Recreate).
 8. **Dateinamen aus dem Browser:** Beim Drag & Drop aus einem Browser-Tab
    liefert der Browser den URL-kodierten Namen (`T%C3%9CV%20Vortrag.pptx`).
