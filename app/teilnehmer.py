@@ -13,6 +13,19 @@ from . import db, versuche, zugang
 
 SITZUNG_STUNDEN = 24
 
+# Die beiden Nachweis-Bezeichnungen (SPEC-Entscheidung 16). Sie stehen hier,
+# weil sie an der Teilnahme hängen: `kurse.py` prüft die Eingabe dagegen, das
+# Portal entscheidet daran, ob es eine Prüfung gibt.
+#
+# Der Unterschied ist nicht nur die Überschrift auf dem Ausdruck: Das
+# Zertifikat setzt eine bestandene Prüfung voraus, die Teilnahmebestätigung
+# bescheinigt die Teilnahme und ist ab der Freischaltung abrufbar. Nie
+# „staatlich anerkannt", kein AZAV, kein Bildungsgutschein — Erwachsenen-
+# bildung ist erlaubnisfrei, AI-SmartCon stellt in eigenem Namen aus.
+NACHWEIS_ZERTIFIKAT = "AI-SmartCon-Zertifikat"
+NACHWEIS_TEILNAHME = "Teilnahmebestätigung"
+NACHWEISE = (NACHWEIS_ZERTIFIKAT, NACHWEIS_TEILNAHME)
+
 # Fester Dummy-Hash für Login-Versuche mit unbekannter E-Mail: `anmelden()`
 # lässt scrypt auch dann laufen, damit die Antwortzeit nicht verrät, ob die
 # Adresse existiert. Einmal beim Modulimport erzeugt (nicht als Konstante im

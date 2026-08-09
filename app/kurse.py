@@ -11,7 +11,7 @@ import re
 import sqlite3
 from datetime import date, datetime, timedelta
 
-from . import db
+from . import db, teilnehmer
 
 STATUS = ("offen", "geschlossen", "abgesagt")
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
@@ -34,11 +34,9 @@ FELDER = ("titel", "beschreibung", "format", "preis_cent", "preis_pauschal",
           "plaetze", "nachweis", "schulung_slug", "aktiv")
 
 # Die Bezeichnung wandert bei der Freischaltung in die Teilnahme und steht
-# später als Überschrift auf dem gedruckten Nachweis. Deshalb nur diese zwei:
-# was hier steht, steht auf einer Urkunde. Nie „staatlich anerkannt", nie AZAV,
-# nie Bildungsgutschein — Erwachsenenbildung ist erlaubnisfrei, AI-SmartCon
-# stellt in eigenem Namen aus (SPEC-Entscheidung 16).
-NACHWEISE = ("AI-SmartCon-Zertifikat", "Teilnahmebestätigung")
+# später als Überschrift auf dem gedruckten Nachweis. Deshalb nur diese zwei —
+# definiert in app/teilnehmer.py, wo die Teilnahme lebt.
+NACHWEISE = teilnehmer.NACHWEISE
 
 
 class KursFehler(ValueError):

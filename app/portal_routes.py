@@ -111,12 +111,34 @@ def portal_kurse(t: dict = Depends(angemeldet)):
     return HTMLResponse(portal.kursliste(t, teilnehmer.teilnahmen_von(t["id"])))
 
 
+def _mit_pruefung(tn: dict) -> bool:
+    """Ob dieser Kurs eine Prüfung hat — entschieden an der Bezeichnung.
+
+    Das Zertifikat setzt eine bestandene Prüfung voraus, die Teilnahme-
+    bestätigung nicht. Die Bezeichnung ist damit die eine Stelle, an der das
+    hängt: sie kommt beim Freischalten aus `kurs.nachweis` und ist die
+    Entscheidung des Betreibers.
+    """
+    return tn.get("nachweis") != teilnehmer.NACHWEIS_TEILNAHME
+
+
+def _pruefung_oder_404(tn: dict) -> None:
+    """Sperrt die Prüfungsrouten für Kurse, die keine Prüfung haben.
+
+    Ohne das ließe sich der Weg über die Adresszeile trotzdem gehen — und ein
+    Versuch würde gezählt, auf einen Nachweis, der davon nicht abhängt.
+    """
+    if not _mit_pruefung(tn):
+        raise HTTPException(404, "Für diesen Kurs gibt es keine Prüfung")
+
+
 @router.get("/kurs/{tnid}", response_class=HTMLResponse)
 def portal_kurs(tnid: int, t: dict = Depends(angemeldet)):
     tn = _offen_oder_403(_teilnahme_oder_404(tnid, t))
     geschafft = versuche.bestanden(tnid) is not None
     offen = max(0, versuche.MAX_VERSUCHE - versuche.zaehlen(tnid))
-    return HTMLResponse(portal.kurs_seite(t, tn, offen, geschafft))
+    return HTMLResponse(
+        portal.kurs_seite(t, tn, offen, geschafft, _mit_pruefung(tn)))
 
 
 # Die Lerneinheit ist agent-generiert und ihr Input schließt vom Kunden
@@ -202,6 +224,7 @@ def portal_pruefung(tnid: int, t: dict = Depends(angemeldet)):
     darf. „richtig" und „hinweis" bleiben auf dem Server.
     """
     tn = _offen_oder_403(_teilnahme_oder_404(tnid, t))
+    _pruefung_oder_404(tn)
     daten = _pruefung_laden_oder_fehler(tn["slug"])
 
     try:
@@ -221,6 +244,7 @@ async def portal_pruefung_abgeben(tnid: int, request: Request,
                                   t: dict = Depends(angemeldet)):
     """Nimmt das Formular und wertet serverseitig aus."""
     tn = _offen_oder_403(_teilnahme_oder_404(tnid, t))
+    _pruefung_oder_404(tn)
     formular = await request.form()
     # Die Felder heißen f0, f1, … — der Index ist der Fragenindex.
     antworten = {schluessel[1:]: wert for schluessel, wert in formular.items()
@@ -244,12 +268,18 @@ async def portal_pruefung_abgeben(tnid: int, request: Request,
 
 @router.get("/kurs/{tnid}/zertifikat", response_class=HTMLResponse)
 def portal_zertifikat(tnid: int, t: dict = Depends(angemeldet)):
-    """Der Nachweis. Nur nach bestandener Prüfung.
+    """Der Nachweis.
 
-    Kein Zugangsfenster-Check: Wer bestanden hat, soll seinen Nachweis auch
-    nach Ablauf noch herunterladen können.
+    Das Zertifikat gibt es nur nach bestandener Prüfung; die Teilnahme-
+    bestätigung hängt allein an der Teilnahme und ist ab der Freischaltung
+    abrufbar — der Kurs hat ja keine Prüfung, die man bestehen könnte.
+
+    Kein Zugangsfenster-Check: Ein einmal erworbener Nachweis bleibt auch
+    nach Ablauf des Zugangs abrufbar.
     """
     tn = _teilnahme_oder_404(tnid, t)
+    if not _mit_pruefung(tn):
+        return HTMLResponse(portal.zertifikat_seite(t, tn, None))
     versuch = versuche.bestanden(tnid)
     if versuch is None:
         raise HTTPException(404, "Für diesen Kurs liegt noch kein Nachweis vor")

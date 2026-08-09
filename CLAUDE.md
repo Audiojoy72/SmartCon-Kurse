@@ -99,6 +99,14 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
   `pruefung.als_html()` ist etwas anderes: Sie wertet im Browser aus und
   bringt ihre Lösungen mit — das ist für eine Datei zum Weitergeben richtig
   und für einen Nachweis untauglich. Die beiden nie verwechseln.
+- **`teilnahme.nachweis` entscheidet, ob es eine Prüfung gibt.**
+  `AI-SmartCon-Zertifikat` heißt: Prüfung vorhanden, Nachweis erst nach
+  Bestehen. `Teilnahmebestätigung` heißt: keine Prüfung, Nachweis ab der
+  Freischaltung — die Prüfungsrouten antworten dort 404. Der Wert kommt aus
+  `kurs.nachweis` (Auswahlfeld im Kurs-Formular, serverseitig gegen
+  `teilnehmer.NACHWEISE` geprüft) oder ist beim Weg über den Reiter
+  „Teilnehmer" das Zertifikat, weil dieser Weg eine `pruefung.json` verlangt.
+  Was dort steht, steht als Überschrift auf einer Urkunde.
 
 ## Code Patterns
 
