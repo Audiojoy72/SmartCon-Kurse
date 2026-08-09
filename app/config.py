@@ -50,7 +50,12 @@ def load() -> dict:
 
 
 def save(cfg: dict) -> dict:
-    clean = {k: cfg.get(k, v) for k, v in DEFAULTS.items()}
+    # Fehlende Schlüssel kommen aus dem aktuellen Stand, nicht aus DEFAULTS:
+    # Das Einstellungsformular schickt nur die Felder, die es kennt — alles
+    # andere (z. B. die SMTP-Zugangsdaten) würde sonst beim Speichern
+    # stillschweigend auf den Standardwert zurückfallen.
+    aktuell = load()
+    clean = {k: cfg.get(k, aktuell.get(k, v)) for k, v in DEFAULTS.items()}
     if clean["backend"] not in ("claude", "kimi"):
         clean["backend"] = "claude"
     if clean["whisper_modus"] not in ("lokal", "api"):
