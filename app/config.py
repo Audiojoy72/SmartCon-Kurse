@@ -26,6 +26,15 @@ DEFAULTS = {
     # Portal-Cookie nur über HTTPS senden. Für die Entwicklung über
     # http://localhost abschaltbar — im Betrieb bleibt es an.
     "portal_secure_cookie": True,
+    # Mailversand für Anmeldebestätigungen. Zugangsdaten leben nur hier.
+    "smtp_host": "",
+    "smtp_port": 587,
+    "smtp_user": "",
+    "smtp_passwort": "",
+    "smtp_von": "",
+    "smtp_starttls": True,
+    # Öffentliche Adresse des Portals, für die Zugangsmail.
+    "portal_url": "",
 }
 
 

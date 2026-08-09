@@ -115,6 +115,19 @@ nur die Erreichbarkeit über GET <url>/models).
    faster-whisper-large-v3, Systran/faster-whisper-large-v3).
 
 Alle Werte stehen nur in der lokalen config.json (gitignored).""",
+    "mail": """\
+Mailversand über SMTP für Anmeldebestätigungen und Zugangsmails.
+
+1. In den Einstellungen eintragen: SMTP-Host, Port, Benutzer, Passwort,
+   Absenderadresse (smtp_von). Port 465 nutzt SSL direkt, jeder andere Port
+   STARTTLS (abschaltbar über smtp_starttls).
+2. portal_url auf die öffentliche Adresse des Teilnehmer-Portals setzen —
+   sie steht in der Zugangsmail.
+3. Das Passwort steht nur in der gitignorierten config.json, nie im Repo.
+
+Kein Verbindungstest hier — der würde bei jedem System-Check eine SMTP-
+Verbindung öffnen. Ob der Versand tatsächlich funktioniert, zeigt sich erst
+beim ersten Versand.""",
     "portal": """\
 Die Kursverwaltung legt ihre Daten in data/kurse.db ab — Teilnehmer, Zugänge
 und Prüfungsversuche.
@@ -330,5 +343,15 @@ def run_all(cfg: dict) -> list[dict]:
 
     # Kursverwaltung (optional — nur nötig, wenn das Portal genutzt wird)
     checks.append(_portal_check())
+
+    # Mailversand (optional — nur nötig für Anmeldebestätigungen/Zugangsmails)
+    smtp_host = cfg.get("smtp_host", "").strip()
+    checks.append({"id": "mail", "name": "Mailversand (SMTP)",
+                   "status": "ok" if smtp_host else "warn",
+                   "detail": (f"{smtp_host}, Absender {cfg.get('smtp_von', '')}"
+                              if smtp_host else "nicht eingerichtet"),
+                   "hint": "" if smtp_host
+                           else "nur nötig, wenn Anmeldebestätigungen verschickt werden",
+                   "anleitung": ANLEITUNG["mail"]})
 
     return checks
