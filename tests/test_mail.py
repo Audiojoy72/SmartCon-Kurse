@@ -87,3 +87,17 @@ def test_kopfzeilen_koennen_nicht_eingeschleust_werden(monkeypatch):
     an = str(gesendet["nachricht"]["To"])
     assert "\n" not in an and "\r" not in an
     assert gesendet["nachricht"]["Bcc"] is None
+
+
+def test_bestaetigung_nennt_die_reihenfolge_wie_die_danke_seite():
+    """Erst Rechnung, dann Zugang — nicht „in Kürze die Zugangsdaten"."""
+    _, text = mail.anmeldung_eingegangen(EINTRAG, KURS, TERMIN)
+    assert "Rechnung" in text
+    assert text.index("Rechnung") < text.index("Zugangsdaten")
+
+
+def test_unvollstaendiger_kurs_kippt_die_bestaetigung_nicht():
+    """Wie anmeldung_seiten._preis(): ein fehlendes Feld ist kein Grund für 500."""
+    _, text = mail.anmeldung_eingegangen(EINTRAG, {"titel": "T", "format": "F"},
+                                         None)
+    assert "0,00 €" in text

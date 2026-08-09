@@ -131,7 +131,7 @@ def api_kurse_liste():
 
 @router.post("/kurse", status_code=201)
 def api_kurs_neu(body: dict):
-    felder = {f: body[f] for f in kurse.FELDER if f in body}
+    felder = _kurs_zahlen_pruefen({f: body[f] for f in kurse.FELDER if f in body})
     try:
         kid = kurse.anlegen(str(body.get("slug", "")), str(body.get("titel", "")),
                             **{f: v for f, v in felder.items() if f != "titel"})
@@ -140,11 +140,37 @@ def api_kurs_neu(body: dict):
     return {"id": kid}
 
 
+# Zahlenfelder des Kurses mit ihren Grenzen. Ohne Typprüfung landet
+# {"plaetze": "viele"} dank SQLite-Affinität als Text in einer
+# INTEGER-NOT-NULL-Spalte und fällt erst irgendwo später auf.
+KURS_ZAHLEN = {"preis_cent": (0, 100_000_000), "plaetze": (0, 10_000)}
+# Schalter. Das Frontend schickt sie mal als true/false, mal als 1/0.
+KURS_FLAGGEN = ("preis_pauschal", "aktiv")
+
+
+def _kurs_zahlen_pruefen(body: dict) -> dict:
+    """Gibt `body` mit geprüften Zahlen- und Schalterfeldern zurück."""
+    body = dict(body)
+    for feld in KURS_FLAGGEN:
+        if feld not in body:
+            continue
+        wert = body[feld]
+        if isinstance(wert, bool) or (isinstance(wert, int) and wert in (0, 1)):
+            body[feld] = int(wert)
+        else:
+            raise HTTPException(400, f"„{feld}“ muss wahr oder falsch sein")
+    for feld, (min_, max_) in KURS_ZAHLEN.items():
+        if feld in body:
+            body[feld] = _int(body, feld, min_, min_, max_)
+    return body
+
+
 @router.post("/kurse/{kid}")
 def api_kurs_aendern(kid: int, body: dict):
     unbekannt = set(body) - set(kurse.FELDER)
     if unbekannt:
         raise HTTPException(400, f"Unbekannte Felder: {', '.join(sorted(unbekannt))}")
+    body = _kurs_zahlen_pruefen(body)
     try:
         kurse.aendern(kid, **body)
     except kurse.KursFehler as e:

@@ -2,9 +2,9 @@
 
 Die Schulungsinhalte bleiben Dateien im Projektordner — hier liegt nur, was
 Beziehungen und Zählung braucht: Teilnehmer, ihre Teilnahmen, Sitzungen und
-Prüfungsversuche.
+Prüfungsversuche, dazu Kurse, Serien, Termine und Anmeldungen.
 
-Bewusst ohne ORM: vier Tabellen, kein Migrationsverlauf, und die Projektregel
+Bewusst ohne ORM: acht Tabellen, kein Migrationsverlauf, und die Projektregel
 „keine neuen Dependencies ohne Not". sqlite3 ist Standardbibliothek.
 """
 

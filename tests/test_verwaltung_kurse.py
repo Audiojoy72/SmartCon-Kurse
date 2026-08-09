@@ -172,3 +172,50 @@ def test_versand_fehler_verliert_den_zugang_nicht(verwaltungsclient, monkeypatch
     assert antwort.status_code == 200
     assert len(antwort.json()["passwort"]) == 12
     assert antwort.json()["mail"] is False
+
+
+def test_unsinnige_uhrzeit_ist_400_und_legt_keine_serie_an(verwaltungsclient):
+    """Vorher: 500 aus termine_erzeugen — und die Serie blieb als Leiche liegen."""
+    kid = _kurs(verwaltungsclient)
+    antwort = verwaltungsclient.post(f"/api/verwaltung/kurse/{kid}/serie",
+                                     json={"wochentag": 2, "uhrzeit": "25:70"})
+    assert antwort.status_code == 400
+    conn = db.verbinden()
+    try:
+        assert conn.execute("SELECT count(*) FROM serie").fetchone()[0] == 0
+    finally:
+        conn.close()
+
+
+def test_kurs_aendern_prueft_die_typen(verwaltungsclient):
+    """SQLite-Affinität legt "viele" klaglos in einer INTEGER-Spalte ab."""
+    kid = _kurs(verwaltungsclient)
+    assert verwaltungsclient.post(f"/api/verwaltung/kurse/{kid}",
+                                  json={"plaetze": "viele"}).status_code == 400
+    assert verwaltungsclient.post(f"/api/verwaltung/kurse/{kid}",
+                                  json={"preis_cent": "teuer"}).status_code == 400
+    assert verwaltungsclient.post(f"/api/verwaltung/kurse/{kid}",
+                                  json={"aktiv": "ja"}).status_code == 400
+    assert kurse.kurs(kid)["plaetze"] == 2
+
+
+def test_kurs_aendern_nimmt_den_schalter_als_wahrheitswert(verwaltungsclient):
+    """Das Frontend schickt aktiv als true/false — das muss weiter gehen."""
+    kid = _kurs(verwaltungsclient)
+    assert verwaltungsclient.post(f"/api/verwaltung/kurse/{kid}",
+                                  json={"aktiv": False}).status_code == 200
+    assert kurse.kurs(kid)["aktiv"] == 0
+
+
+def test_anmeldungen_zeigen_den_terminstatus(verwaltungsclient):
+    """Sonst schaltet der Betreiber den Zugang zu einem abgesagten Termin frei."""
+    kid = _kurs(verwaltungsclient)
+    verwaltungsclient.post(f"/api/verwaltung/kurse/{kid}/serie",
+                           json={"wochentag": 2, "uhrzeit": "09:00", "wochen": 8})
+    tid = verwaltungsclient.get(
+        "/api/verwaltung/kurse").json()["kurse"][0]["termine"][0]["id"]
+    anmeldung.annehmen(kid, tid, "Anna", "anna@example.org")
+    kurse.termin_status(tid, "abgesagt")
+
+    liste = verwaltungsclient.get("/api/verwaltung/anmeldungen").json()["anmeldungen"]
+    assert liste[0]["termin_status"] == "abgesagt"

@@ -62,8 +62,11 @@ def senden(an: str, betreff: str, text: str) -> None:
 
 
 def _preis_text(kurs: dict) -> str:
-    betrag = f"{kurs['preis_cent'] / 100:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    zusatz = "gesamt" if kurs["preis_pauschal"] else "pro Person"
+    # .get() wie in anmeldung_seiten._preis(): Eine Mail darf nicht daran
+    # scheitern, dass dem Kurs-Wörterbuch ein Feld fehlt.
+    betrag = f"{int(kurs.get('preis_cent', 0)) / 100:,.2f}"
+    betrag = betrag.replace(",", "X").replace(".", ",").replace("X", ".")
+    zusatz = "gesamt" if kurs.get("preis_pauschal") else "pro Person"
     return f"{betrag} € {zusatz}"
 
 
@@ -83,8 +86,9 @@ vielen Dank für Ihre Anmeldung zu „{kurs['titel']}“.
 Format: {kurs['format']}
 Preis: {_preis_text(kurs)}
 
-Sie erhalten in Kürze eine weitere E-Mail mit Ihren Zugangsdaten zum
-Teilnehmer-Portal.
+So geht es weiter: Sie bekommen von uns eine Rechnung. Sobald die Zahlung da
+ist, schalten wir Ihren Zugang frei und schicken Ihnen die Zugangsdaten für
+das Teilnehmer-Portal per E-Mail.
 
 Viele Grüße
 AI-SmartCon

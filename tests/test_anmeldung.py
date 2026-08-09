@@ -229,3 +229,23 @@ def test_zweiter_kurs_fuer_dieselbe_person(umgebung):
     anmeldung.status_setzen(a2, "bezahlt")
     tid2, _ = anmeldung.zu_teilnehmer(a2)
     assert tid2 == tid1
+
+
+def test_zu_langer_name_wird_abgewiesen(umgebung):
+    """maxlength im Formular ist Bequemlichkeit — ein direkter POST kennt es nicht."""
+    with pytest.raises(anmeldung.AnmeldungFehler, match="Name"):
+        anmeldung.annehmen(umgebung["terminlos"], None,
+                           "A" * (anmeldung.MAX_NAME + 1), "anna@example.org")
+
+
+def test_zu_lange_firma_wird_abgewiesen(umgebung):
+    with pytest.raises(anmeldung.AnmeldungFehler, match="Firmenname"):
+        anmeldung.annehmen(umgebung["terminlos"], None, "Anna",
+                           "anna@example.org", firma="F" * (anmeldung.MAX_FIRMA + 1))
+
+
+def test_liste_nennt_den_terminstatus(umgebung):
+    anmeldung.annehmen(umgebung["kurs"], umgebung["termin"], "Anna",
+                       "anna@example.org")
+    kurse.termin_status(umgebung["termin"], "abgesagt")
+    assert anmeldung.liste()[0]["termin_status"] == "abgesagt"
