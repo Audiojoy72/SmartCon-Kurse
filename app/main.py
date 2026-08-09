@@ -52,12 +52,14 @@ def api_preflight():
 
 @app.get("/api/config")
 def api_config_get():
-    return config.load()
+    # Geheimnisse gehen nur maskiert an den Browser. Das Formular schickt die
+    # Maske beim Speichern zurück, config.save() erkennt sie als „unverändert".
+    return config.maskiert(config.load())
 
 
 @app.post("/api/config")
 async def api_config_post(cfg: dict):
-    return config.save(cfg)
+    return config.maskiert(config.save(cfg))
 
 
 @app.post("/api/config/logo")

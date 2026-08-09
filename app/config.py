@@ -43,6 +43,24 @@ DEFAULTS = {
 }
 
 
+# Was nie im Klartext aus dem Backend herausgeht.
+GEHEIME_FELDER = ("whisper_api_key", "cf_access_client_secret", "smtp_passwort")
+# Steht in der Antwort anstelle eines gesetzten Geheimnisses. Kommt derselbe
+# Text beim Speichern zurück, heißt das „unverändert" — sonst würde das
+# Einstellungsformular, das die Felder befüllt und mitschickt, beim ersten
+# Klick auf „Speichern" die Maske als Geheimnis ablegen.
+MASKE = "••••••••"
+
+
+def maskiert(cfg: dict) -> dict:
+    """Kopie der Konfiguration, in der gesetzte Geheimnisse ersetzt sind."""
+    sichtbar = dict(cfg)
+    for feld in GEHEIME_FELDER:
+        if sichtbar.get(feld):
+            sichtbar[feld] = MASKE
+    return sichtbar
+
+
 def load() -> dict:
     if CONFIG_PATH.exists():
         try:
@@ -61,6 +79,9 @@ def save(cfg: dict) -> dict:
     # stillschweigend auf den Standardwert zurückfallen.
     aktuell = load()
     clean = {k: cfg.get(k, aktuell.get(k, v)) for k, v in DEFAULTS.items()}
+    for feld in GEHEIME_FELDER:
+        if clean[feld] == MASKE:
+            clean[feld] = aktuell.get(feld, "")
     if clean["backend"] not in ("claude", "kimi"):
         clean["backend"] = "claude"
     if clean["whisper_modus"] not in ("lokal", "api"):
