@@ -6,9 +6,15 @@
 # ist. Die Wurzel liefert deshalb 404. Diese Regel greift eine Ebene davor,
 # bei Cloudflare selbst, und laesst die Schutzregel unangetastet.
 #
-# Braucht einen API-Token mit "Zone -> Zone WAF/Rules -> Edit" auf der Zone
+# Braucht einen API-Token mit "Zone -> Dynamic Redirect -> Edit" auf der Zone
 # smartcon-ai.de, abgelegt in ~/.cloudflared/smartcon-ai-api-token (chmod 600).
-# Der Token aus cert.pem reicht nicht — der darf nur DNS.
+# Zwei Stolpersteine, beide einmal erlebt:
+#  - Der Token aus cert.pem reicht nicht, der darf nur DNS.
+#  - "Zone WAF -> Edit" ist die falsche Gruppe. Damit gehen Firewall-Regeln,
+#    aber nicht Redirect Rules; die API antwortet dann schlicht
+#    "request is not authorized". Womit ein Token darf, laesst sich pruefen:
+#    die erlaubte Phase meldet "could not find entrypoint ruleset", die
+#    verbotene "request is not authorized".
 #
 # Die Bedingung prueft den Pfad exakt auf "/". Ohne das wuerde die Regel auch
 # /anmeldung umleiten und eine Endlosschleife bauen.
@@ -30,7 +36,9 @@ api "https://api.cloudflare.com/client/v4/zones/$ZONE/rulesets/phases/http_reque
 import json,sys
 d=json.load(sys.stdin)
 if not d.get('success'):
-    print('Token darf keine Regeln lesen:', d.get('errors')); raise SystemExit(1)
+    print('Token darf keine Redirect Rules:', d.get('errors'))
+    print('Fehlt vermutlich die Berechtigung Zone -> Dynamic Redirect -> Edit.')
+    raise SystemExit(1)
 print('  OK, bestehende Regeln:', len(d['result'].get('rules', [])))"
 
 echo "Setze die Weiterleitung …"
