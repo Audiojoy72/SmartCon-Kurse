@@ -165,6 +165,9 @@ def zu_teilnehmer(anmeldung_id: int) -> tuple[int, str]:
         if teilnehmer_zeile is not None:
             teilnehmer_id = teilnehmer_zeile["id"]
         else:
+            # Spiegelt teilnehmer.anlegen() (dort UNIQUE auf email — hier
+            # per SELECT vorher ausgeschlossen, damit alles in dieser
+            # Transaktion bleibt statt über eine zweite Verbindung zu laufen).
             cur = conn.execute(
                 "INSERT INTO teilnehmer (email, name, firma, angelegt_am) "
                 "VALUES (?, ?, ?, ?)",
@@ -172,14 +175,20 @@ def zu_teilnehmer(anmeldung_id: int) -> tuple[int, str]:
                  anmeldung_zeile["firma"], _jetzt()))
             teilnehmer_id = cur.lastrowid
 
+        # Spiegelt teilnehmer.teilnahme_anlegen(): FOREIGN KEY ist hier
+        # unerreichbar (teilnehmer_id kommt gerade aus dieser Transaktion),
+        # nur die UNIQUE(teilnehmer_id, slug)-Verletzung ist erwartbar und
+        # kein Fehler — alles andere soll durchschlagen statt zu verschwinden.
         try:
             conn.execute(
                 "INSERT INTO teilnahme (teilnehmer_id, slug, titel, nachweis) "
                 "VALUES (?, ?, ?, ?)",
                 (teilnehmer_id, kurs_zeile["schulung_slug"], kurs_zeile["titel"],
                  kurs_zeile["nachweis"]))
-        except sqlite3.IntegrityError:
-            pass  # Diese Schulung ist dem Teilnehmer bereits zugeordnet.
+        except sqlite3.IntegrityError as e:
+            if "UNIQUE" not in str(e):
+                raise
+            # Diese Schulung ist dem Teilnehmer bereits zugeordnet.
 
         conn.execute(
             "UPDATE anmeldung SET teilnehmer_id = ? WHERE id = ?",
