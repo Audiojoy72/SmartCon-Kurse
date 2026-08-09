@@ -219,3 +219,32 @@ def test_anmeldungen_zeigen_den_terminstatus(verwaltungsclient):
 
     liste = verwaltungsclient.get("/api/verwaltung/anmeldungen").json()["anmeldungen"]
     assert liste[0]["termin_status"] == "abgesagt"
+
+
+def test_nachweis_kommt_aus_dem_formular(verwaltungsclient):
+    """Ohne Feld im Formular bekam auch eine bestandene Prüfung nur eine
+    Teilnahmebestätigung — der Spaltendefault gewann."""
+    kid = _kurs(verwaltungsclient, nachweis="AI-SmartCon-Zertifikat")
+    liste = verwaltungsclient.get("/api/verwaltung/kurse").json()["kurse"]
+    assert [k for k in liste if k["id"] == kid][0]["nachweis"] \
+        == "AI-SmartCon-Zertifikat"
+
+
+def test_erfundener_nachweis_ist_400(verwaltungsclient):
+    antwort = verwaltungsclient.post(
+        "/api/verwaltung/kurse",
+        json={"slug": "erfunden", "titel": "Titel", "nachweis": "IHK-geprüft"})
+    assert antwort.status_code == 400
+
+
+def test_der_nachweis_landet_auf_der_teilnahme(verwaltungsclient):
+    """Der Weg, der den Fund ausgelöst hat: Kurs → Anmeldung → Freischalten."""
+    kid = _kurs(verwaltungsclient, nachweis="AI-SmartCon-Zertifikat")
+    aid = anmeldung.annehmen(kid, None, "Anna", "anna@example.org")
+    verwaltungsclient.post(f"/api/verwaltung/anmeldungen/{aid}/status",
+                           json={"status": "bezahlt"})
+    verwaltungsclient.post(f"/api/verwaltung/anmeldungen/{aid}/freischalten")
+
+    from app import teilnehmer
+    t = [x for x in teilnehmer.liste() if x["email"] == "anna@example.org"][0]
+    assert t["teilnahmen"][0]["nachweis"] == "AI-SmartCon-Zertifikat"

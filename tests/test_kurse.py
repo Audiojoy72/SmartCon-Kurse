@@ -189,3 +189,18 @@ def test_naechste_offene_ueberspringt_vergangene_und_abgesagte(datenbank):
     jetzt = datetime.now()
     assert all(datetime.fromisoformat(t["beginn"]) > jetzt
                for t in kurse.naechste_offene(kid, anzahl=99))
+
+
+def test_nachweis_wird_uebernommen(datenbank):
+    kid = kurse.anlegen("ki-pflicht", "Titel",
+                        nachweis="AI-SmartCon-Zertifikat")
+    assert kurse.kurs(kid)["nachweis"] == "AI-SmartCon-Zertifikat"
+
+
+def test_nachweis_nur_aus_der_erlaubten_liste(datenbank):
+    """Was hier steht, steht später als Überschrift auf einer Urkunde."""
+    with pytest.raises(kurse.KursFehler, match="Nachweis"):
+        kurse.anlegen("ki-pflicht", "Titel", nachweis="staatlich anerkannt")
+    kid = kurse.anlegen("ki-pflicht", "Titel")
+    with pytest.raises(kurse.KursFehler, match="Nachweis"):
+        kurse.aendern(kid, nachweis="IHK-geprüft")

@@ -1089,6 +1089,7 @@ async function ladeKurse() {
         <span class="muted">/anmeldung/${esc(k.slug)} · ${euro(k.preis_cent)} €
           ${k.preis_pauschal ? 'gesamt' : 'pro Person'}</span>
         <span class="badge">${k.aktiv ? 'ausgeschrieben' : 'nicht sichtbar'}</span>
+        <span class="badge">${esc(k.nachweis)}</span>
         <div class="tabelle-scroll"><table class="gate-tabelle">
           <thead><tr><th>Termin</th><th>Belegt</th><th>Status</th><th></th></tr></thead>
           <tbody>${k.termine.map((t) => `
@@ -1177,6 +1178,7 @@ document.getElementById('kurs-form').addEventListener('submit', async (e) => {
     preis_pauschal: f.get('preis_pauschal') ? 1 : 0,
     plaetze: Number(f.get('plaetze')),
     schulung_slug: f.get('schulung_slug') || '',
+    nachweis: f.get('nachweis'),
   };
   const a = await fetch('/api/verwaltung/kurse', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
