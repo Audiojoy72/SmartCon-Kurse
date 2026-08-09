@@ -486,6 +486,11 @@ document.getElementById("btn-kommentar-send").addEventListener("click", async ()
 });
 
 ladeProjekte();
+// „Präsentationen" ist der erste Reiter und beim Laden sichtbar — die Liste
+// dahinter muss deshalb schon gefüllt sein, nicht erst nach einem Klick.
+// (Beide Funktionen sind `function`-Deklarationen und damit hier bereits da.)
+deckPanel("dv-liste");
+ladeDecks();
 
 // ==========================================================================
 // Freigabe-Gate
