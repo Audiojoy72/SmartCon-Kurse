@@ -10,6 +10,10 @@ Antwort. Weder im Markup, noch in einem Attribut, noch in einem Skript.
 import html as _html
 from datetime import datetime
 
+# Die einzige Abhängigkeit dieses Moduls, und nur ein Name: die Bezeichnung
+# selbst zu wiederholen hieße, sie an zwei Stellen richtig halten zu müssen.
+from .teilnehmer import NACHWEIS_TEILNAHME
+
 # AI-SmartCon-CI, wie in app/pruefung.py
 FARBEN = {
     "hintergrund": "#060611", "panel": "#1a1a22", "akzent": "#c9a84c",
@@ -145,7 +149,11 @@ def kursliste(teilnehmer: dict, teilnahmen: list[dict]) -> str:
     </div>""")
             else:
                 nachweis = ""
-                if tn.get("bestanden"):
+                # Nach Ablauf bleibt der Nachweis abrufbar: das Zertifikat,
+                # wenn die Prüfung bestanden wurde — die Teilnahmebestätigung
+                # ohnehin, sie hängt nur an der Teilnahme.
+                if tn.get("bestanden") or \
+                        tn.get("nachweis") == NACHWEIS_TEILNAHME:
                     nachweis = f"""
       <div class="zeile">
         <a class="knopf" href="/portal/kurs/{int(tn["id"])}/zertifikat">Nachweis anzeigen</a>
@@ -163,9 +171,31 @@ def kursliste(teilnehmer: dict, teilnahmen: list[dict]) -> str:
 
 
 def kurs_seite(teilnehmer: dict, teilnahme: dict, versuche_offen: int,
-               bestanden: bool) -> str:
-    """Die Lerneinheit im Rahmen, plus der Weg zur Prüfung."""
+               bestanden: bool, mit_pruefung: bool = True) -> str:
+    """Die Lerneinheit im Rahmen, plus der Weg zum Nachweis.
+
+    `mit_pruefung` folgt der Bezeichnung an der Teilnahme: Ein Kurs, der eine
+    Teilnahmebestätigung ausstellt, zeigt keine Prüfung an — sonst stünde
+    dort ein „Prüfung starten", das auf nichts hinausläuft.
+    """
     tnid = int(teilnahme["id"])
+    if not mit_pruefung:
+        inhalt = f"""  <h1>{_html.escape(str(teilnahme["titel"]))}</h1>
+  <div class="karte">
+    <iframe src="/portal/kurs/{tnid}/datei" title="Lerneinheit"
+            style="width:100%;height:70vh;border:0;border-radius:10px;background:#fff"></iframe>
+  </div>
+  <div class="karte">
+    <h2>Ihre Teilnahmebestätigung</h2>
+    <p>Für diesen Kurs gibt es keine Prüfung. Die Bestätigung Ihrer Teilnahme
+      können Sie jederzeit ausdrucken.</p>
+    <div class="zeile">
+      <a class="knopf" href="/portal/kurs/{tnid}/zertifikat">Nachweis anzeigen</a>
+    </div>
+  </div>
+  <p class="muted"><a href="/portal/kurse">Zurück zur Übersicht</a></p>"""
+        return seite(str(teilnahme["titel"]), inhalt, teilnehmer)
+
     if bestanden:
         pruefungsteil = f"""    <p>Sie haben die Prüfung bestanden.</p>
       <div class="zeile">
@@ -308,11 +338,18 @@ _DRUCK = """
 """
 
 
-def zertifikat_seite(teilnehmer: dict, teilnahme: dict, versuch: dict) -> str:
+def zertifikat_seite(teilnehmer: dict, teilnahme: dict,
+                     versuch: dict | None) -> str:
     """Der Nachweis, druckbar.
 
     Kein serverseitiges PDF: Eine Seite mit @media print kostet keine
     Abhängigkeit, und der Teilnehmer erzeugt das PDF im Browser.
+
+    Zwei Fassungen, und der Unterschied ist inhaltlich, nicht kosmetisch:
+    Mit `versuch` bescheinigt die Seite eine bestandene Prüfung („hat
+    erfolgreich abgeschlossen"), ohne `versuch` nur die Teilnahme („hat
+    teilgenommen"). Eine Teilnahmebestätigung darf keinen Leistungsnachweis
+    behaupten — die App weiß nur, dass der Zugang bestand.
 
     Was hier NICHT stehen darf: „staatlich anerkannt", ein Verweis auf AZAV
     oder einen Bildungsgutschein, „zertifiziert nach". AI-SmartCon stellt den
@@ -321,17 +358,24 @@ def zertifikat_seite(teilnehmer: dict, teilnahme: dict, versuch: dict) -> str:
     bezeichnung = _html.escape(str(teilnahme.get("nachweis") or "Teilnahmebestätigung"))
     firma_html = (f'<p class="muted">{_html.escape(str(teilnehmer["firma"]))}</p>'
                   if teilnehmer.get("firma") else '')
+    if versuch is not None:
+        leistung = "hat erfolgreich abgeschlossen"
+        beleg = (f"""    <p class="muted">Abschlussprüfung bestanden am
+      {_datum(str(versuch.get("beendet_am") or ""))} mit
+      {int(versuch.get("prozent") or 0)} %.</p>""")
+    else:
+        leistung = "hat teilgenommen"
+        beleg = (f"""    <p class="muted">Zugang zur Lerneinheit seit
+      {_datum(str(teilnahme.get("freigeschaltet_am") or ""))}.</p>""")
     inhalt = f"""  <div class="karte urkunde" style="text-align:center;padding:40px 24px">
     <p class="thema">{bezeichnung}</p>
     <h1>{_html.escape(str(teilnahme["titel"]))}</h1>
-    <p class="muted">hat erfolgreich abgeschlossen</p>
+    <p class="muted">{leistung}</p>
     <p class="name" style="font-size:26px;font-weight:700;margin:16px 0">
       {_html.escape(str(teilnehmer["name"]))}</p>
     {firma_html}
     <hr style="border:0;border-top:1px solid #c9a84c;margin:24px auto;max-width:280px">
-    <p class="muted">Abschlussprüfung bestanden am
-      {_datum(str(versuch.get("beendet_am") or ""))} mit
-      {int(versuch.get("prozent") or 0)} %.</p>
+{beleg}
     <p class="muted">Ausgestellt von AI-SmartCon · www.ai-smartcon.de</p>
   </div>
   <div class="zeile nicht-drucken">

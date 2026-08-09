@@ -311,3 +311,56 @@ def test_secure_cookie_ist_im_produktions_default_an(portal_umgebung, monkeypatc
     monkeypatch.setattr(config, "load", lambda: dict(config.DEFAULTS))
     antwort = _anmelden(c, c.anna["email"], c.anna["passwort"])
     assert "Secure" in antwort.headers["set-cookie"]
+
+
+def _auf_teilnahmebestaetigung(tnid):
+    """Stellt die Teilnahme auf einen Kurs ohne Prüfung um."""
+    from app import db, teilnehmer
+
+    conn = db.verbinden()
+    conn.execute("UPDATE teilnahme SET nachweis = ? WHERE id = ?",
+                 (teilnehmer.NACHWEIS_TEILNAHME, tnid))
+    conn.close()
+
+
+def test_bestaetigung_ist_ohne_pruefung_abrufbar(portal_umgebung):
+    """Vorher gab es hier 404 — eine Teilnahmebestätigung war nicht erreichbar."""
+    c = portal_umgebung
+    _auf_teilnahmebestaetigung(c.anna["teilnahme"])
+    _anmelden(c, c.anna["email"], c.anna["passwort"])
+
+    antwort = c.get(f"/portal/kurs/{c.anna['teilnahme']}/zertifikat")
+    assert antwort.status_code == 200
+    assert "hat teilgenommen" in antwort.text
+    assert "bestanden" not in antwort.text
+
+
+def test_kurs_ohne_pruefung_bietet_keine_pruefung_an(portal_umgebung):
+    c = portal_umgebung
+    _auf_teilnahmebestaetigung(c.anna["teilnahme"])
+    _anmelden(c, c.anna["email"], c.anna["passwort"])
+
+    text = c.get(f"/portal/kurs/{c.anna['teilnahme']}").text
+    assert "Prüfung starten" not in text
+    assert f"/portal/kurs/{c.anna['teilnahme']}/zertifikat" in text
+
+
+def test_pruefungsrouten_sind_dort_gesperrt(portal_umgebung):
+    """Über die Adresszeile ginge sonst ein Versuch auf einen Kurs ohne Prüfung."""
+    from app import versuche
+
+    c = portal_umgebung
+    tnid = c.anna["teilnahme"]
+    _auf_teilnahmebestaetigung(tnid)
+    _anmelden(c, c.anna["email"], c.anna["passwort"])
+
+    assert c.get(f"/portal/kurs/{tnid}/pruefung").status_code == 404
+    assert c.post(f"/portal/kurs/{tnid}/pruefung",
+                  data=ALLES_RICHTIG).status_code == 404
+    assert versuche.zaehlen(tnid) == 0
+
+
+def test_das_zertifikat_bleibt_an_die_pruefung_gebunden(portal_umgebung):
+    c = portal_umgebung
+    _anmelden(c, c.anna["email"], c.anna["passwort"])
+    assert c.get(f"/portal/kurs/{c.anna['teilnahme']}/zertifikat").status_code == 404

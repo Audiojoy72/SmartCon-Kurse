@@ -75,7 +75,10 @@ def api_teilnahme_neu(tid: int, body: dict):
                  "Projekt „Prüfung erzeugen“ starten")
 
     titel = p["briefing"].get("thema") or slug
-    nachweis = "AI-SmartCon-Zertifikat"
+    # Dieser Weg verlangt oben eine pruefung.json, also gibt es hier immer
+    # eine Prüfung — und damit das Zertifikat. Über einen Kurs entscheidet
+    # das stattdessen dessen `nachweis`.
+    nachweis = teilnehmer.NACHWEIS_ZERTIFIKAT
     try:
         tnid = teilnehmer.teilnahme_anlegen(tid, slug, titel, nachweis)
     except teilnehmer.TeilnehmerFehler as e:

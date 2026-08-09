@@ -171,3 +171,50 @@ def test_kursseite_ohne_versuche_bietet_keine_pruefung_an():
     html = portal.kurs_seite(TEILNEHMER, TEILNAHME, versuche_offen=0, bestanden=False)
     assert "/portal/kurs/7/pruefung" not in html
     assert "aufgebraucht" in html.lower()
+
+
+def test_teilnahmebestaetigung_behauptet_keine_pruefung():
+    """Ohne Prüfung darf der Nachweis keinen Leistungsnachweis behaupten."""
+    t = {"name": "Anna Beispiel", "firma": "Beispiel GmbH"}
+    tn = {"id": 1, "titel": "Kurs ohne Prüfung",
+          "nachweis": portal.NACHWEIS_TEILNAHME,
+          "freigeschaltet_am": "2026-08-09T10:00:00"}
+    html = portal.zertifikat_seite(t, tn, None)
+    assert "Teilnahmebestätigung" in html
+    assert "hat teilgenommen" in html
+    assert "erfolgreich abgeschlossen" not in html
+    assert "bestanden" not in html
+    assert "09.08.2026" in html
+    for verboten in ("staatlich anerkannt", "azav", "bildungsgutschein"):
+        assert verboten not in html.lower()
+
+
+def test_zertifikat_nennt_die_pruefung_weiterhin():
+    t = {"name": "Anna Beispiel"}
+    tn = {"id": 1, "titel": "Kurs mit Prüfung",
+          "nachweis": "AI-SmartCon-Zertifikat"}
+    html = portal.zertifikat_seite(
+        t, tn, {"beendet_am": "2026-08-09T10:00:00", "prozent": 87})
+    assert "erfolgreich abgeschlossen" in html
+    assert "87 %" in html
+
+
+def test_kurs_ohne_pruefung_zeigt_keine_pruefung():
+    t = {"name": "Anna"}
+    tn = {"id": 5, "titel": "Kurs ohne Prüfung"}
+    html = portal.kurs_seite(t, tn, versuche_offen=3, bestanden=False,
+                             mit_pruefung=False)
+    assert "Prüfung starten" not in html
+    assert "Versuche" not in html
+    assert "/portal/kurs/5/zertifikat" in html
+
+
+def test_kursliste_verlinkt_die_bestaetigung_auch_nach_ablauf():
+    """Sie hängt nur an der Teilnahme, nicht an einem Versuch."""
+    t = {"name": "Anna"}
+    tn = {"id": 5, "titel": "Kurs", "offen": False, "bestanden": False,
+          "nachweis": portal.NACHWEIS_TEILNAHME}
+    assert "/portal/kurs/5/zertifikat" in portal.kursliste(t, [tn])
+
+    ohne = {**tn, "nachweis": "AI-SmartCon-Zertifikat"}
+    assert "/portal/kurs/5/zertifikat" not in portal.kursliste(t, [ohne])
