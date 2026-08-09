@@ -97,7 +97,12 @@ Browser (Vanilla JS) ──HTTP+SSE──> FastAPI ──Subprozess──> claud
   | Portal | `/portal*` | eigenes Login, scrypt + Sitzungscookie |
   | Anmeldung | `/anmeldung*` | keiner — öffentlich, das ist der Zweck |
 
-  Der Schutz der Werkstatt liegt in `~/.cloudflared/config.yml`: Die
+  Der Schutz der Werkstatt liegt im **eigenen** Tunnel dieser App:
+  `~/.cloudflared/smartcon-kurse.yml`, Dienst
+  `cloudflared-smartcon-kurse.service`, Tunnel-ID
+  `7717275f-39e5-4e24-8938-28d881643420`. Bewusst getrennt vom Tunnel
+  `atvs.de`, der n8n und os./hermes.smartcon-ai.de trägt — diese App soll
+  unabhängig neu gestartet und notfalls abgeschaltet werden können. Die
   Ingress-Regel für `kurse.smartcon-ai.de` hat ein
   `path: ^/(anmeldung|portal)(/.*)?$`, alles andere fällt auf
   `http_status:404`. **Wer diese Regel weicher macht, legt die Werkstatt

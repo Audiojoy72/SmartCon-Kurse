@@ -177,7 +177,12 @@ diese Werte funktioniert die Anmeldung weiter, nur ohne Mail — die Kachel
 
 Öffentlich sind **nur** `/anmeldung*` und `/portal*`. Die Werkstatt wird über
 den Tunnel gar nicht erst geroutet — sie startet Agenten mit Bash-Rechten und
-gehört ins Hausnetz. Die Regel steht in `~/.cloudflared/config.yml`:
+gehört ins Hausnetz.
+
+Die App hat dafür einen **eigenen** Cloudflare-Tunnel (`smartcon-kurse`,
+Konfiguration `~/.cloudflared/smartcon-kurse.yml`, Dienst
+`cloudflared-smartcon-kurse.service`) — getrennt von den übrigen Diensten des
+Hauses, damit ein Neustart hier nichts anderes mitnimmt. Die Regel:
 
 ```yaml
   - hostname: kurse.smartcon-ai.de
