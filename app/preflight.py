@@ -11,7 +11,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import config, db
+from . import config, db, mail
 
 ROOT = Path(__file__).resolve().parent.parent
 TIMEOUT = 20
@@ -346,11 +346,19 @@ def run_all(cfg: dict) -> list[dict]:
 
     # Mailversand (optional — nur nötig für Anmeldebestätigungen/Zugangsmails)
     smtp_host = cfg.get("smtp_host", "").strip()
+    smtp_von = cfg.get("smtp_von", "").strip()
+    if mail.konfiguriert(cfg):
+        mail_detail = f"{smtp_host}, Absender {smtp_von}"
+    elif not smtp_host and not smtp_von:
+        mail_detail = "nicht eingerichtet"
+    elif not smtp_host:
+        mail_detail = "smtp_host fehlt"
+    else:
+        mail_detail = "smtp_von (Absender) fehlt"
     checks.append({"id": "mail", "name": "Mailversand (SMTP)",
-                   "status": "ok" if smtp_host else "warn",
-                   "detail": (f"{smtp_host}, Absender {cfg.get('smtp_von', '')}"
-                              if smtp_host else "nicht eingerichtet"),
-                   "hint": "" if smtp_host
+                   "status": "ok" if mail.konfiguriert(cfg) else "warn",
+                   "detail": mail_detail,
+                   "hint": "" if mail.konfiguriert(cfg)
                            else "nur nötig, wenn Anmeldebestätigungen verschickt werden",
                    "anleitung": ANLEITUNG["mail"]})
 

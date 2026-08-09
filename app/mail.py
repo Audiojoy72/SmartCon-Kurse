@@ -25,15 +25,16 @@ class MailFehler(RuntimeError):
     """Versand nicht möglich. Die Meldung ist für die Oberfläche."""
 
 
-def konfiguriert() -> bool:
+def konfiguriert(cfg: dict | None = None) -> bool:
     """Ob SMTP-Zugangsdaten hinterlegt sind — nur Host/Absender geprüft, kein Verbindungstest."""
-    cfg = config.load()
+    if cfg is None:
+        cfg = config.load()
     return bool(cfg["smtp_host"] and cfg["smtp_von"])
 
 
 def senden(an: str, betreff: str, text: str) -> None:
     cfg = config.load()
-    if not konfiguriert():
+    if not konfiguriert(cfg):
         raise MailFehler("Mailversand ist nicht eingerichtet (SMTP-Host/Absender fehlen)")
 
     nachricht = EmailMessage()
@@ -76,7 +77,7 @@ def anmeldung_eingegangen(eintrag: dict, kurs: dict, termin: dict | None) -> tup
 
     text = f"""Hallo {eintrag['name']},
 
-vielen Dank für Ihre Anmeldung zu „{kurs['titel']}".
+vielen Dank für Ihre Anmeldung zu „{kurs['titel']}“.
 
 {termin_zeile}
 Format: {kurs['format']}
@@ -85,8 +86,6 @@ Preis: {_preis_text(kurs)}
 Sie erhalten in Kürze eine weitere E-Mail mit Ihren Zugangsdaten zum
 Teilnehmer-Portal.
 
-Diese Bescheinigung wird von AI-SmartCon in eigenem Namen ausgestellt.
-
 Viele Grüße
 AI-SmartCon
 """
@@ -94,7 +93,7 @@ AI-SmartCon
 
 
 def zugang_freigeschaltet(eintrag: dict, kurs: dict, passwort: str, portal_url: str) -> tuple[str, str]:
-    betreff = f"Ihr Zugang zu „{kurs['titel']}\""
+    betreff = f"Ihr Zugang zu „{kurs['titel']}“"
 
     text = f"""Hallo {eintrag['name']},
 
@@ -106,8 +105,6 @@ Passwort: {passwort}
 
 Bitte bewahren Sie das Passwort sicher auf — nach dieser E-Mail ist es nicht
 mehr abrufbar.
-
-Diese Bescheinigung wird von AI-SmartCon in eigenem Namen ausgestellt.
 
 Viele Grüße
 AI-SmartCon
