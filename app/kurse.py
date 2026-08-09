@@ -16,6 +16,16 @@ from . import db
 STATUS = ("offen", "geschlossen", "abgesagt")
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
+# Gemeinsames JOIN-Fragment für "belegt" (Anmeldungen ungleich storniert je
+# Termin) — von termine() und naechste_offene() genutzt, damit eine
+# künftige Änderung der Belegungslogik nur an einer Stelle passiert.
+_BELEGT_JOIN = (
+    "LEFT JOIN ("
+    "  SELECT termin_id, count(*) AS belegt FROM anmeldung "
+    "  WHERE status != 'storniert' GROUP BY termin_id"
+    ") a ON a.termin_id = t.id "
+)
+
 # Welche Felder `anlegen`/`aendern` annehmen. Alles andere wird abgewiesen,
 # damit ein Tippfehler nicht stillschweigend ins Leere läuft.
 FELDER = ("titel", "beschreibung", "format", "preis_cent", "preis_pauschal",
@@ -179,10 +189,7 @@ def termine(kurs_id: int | None = None, ab: datetime | None = None) -> list[dict
         "coalesce(a.belegt, 0) AS belegt, "
         "t.plaetze - coalesce(a.belegt, 0) AS frei "
         "FROM termin t "
-        "LEFT JOIN ("
-        "  SELECT termin_id, count(*) AS belegt FROM anmeldung "
-        "  WHERE status != 'storniert' GROUP BY termin_id"
-        ") a ON a.termin_id = t.id "
+        + _BELEGT_JOIN +
         "WHERE 1 = 1"
     )
     parameter = []
@@ -236,10 +243,7 @@ def naechste_offene(kurs_id: int, anzahl: int = 4) -> list[dict]:
         zeilen = conn.execute(
             "SELECT t.*, coalesce(a.belegt, 0) AS belegt "
             "FROM termin t "
-            "LEFT JOIN ("
-            "  SELECT termin_id, count(*) AS belegt FROM anmeldung "
-            "  WHERE status != 'storniert' GROUP BY termin_id"
-            ") a ON a.termin_id = t.id "
+            + _BELEGT_JOIN +
             "WHERE t.kurs_id = ? AND t.status = 'offen' AND t.beginn > ? "
             "ORDER BY t.beginn LIMIT ?",
             (kurs_id, datetime.now().isoformat(), anzahl)).fetchall()
