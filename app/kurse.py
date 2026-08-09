@@ -33,6 +33,13 @@ _BELEGT_JOIN = (
 FELDER = ("titel", "beschreibung", "format", "preis_cent", "preis_pauschal",
           "plaetze", "nachweis", "schulung_slug", "aktiv")
 
+# Die Bezeichnung wandert bei der Freischaltung in die Teilnahme und steht
+# später als Überschrift auf dem gedruckten Nachweis. Deshalb nur diese zwei:
+# was hier steht, steht auf einer Urkunde. Nie „staatlich anerkannt", nie AZAV,
+# nie Bildungsgutschein — Erwachsenenbildung ist erlaubnisfrei, AI-SmartCon
+# stellt in eigenem Namen aus (SPEC-Entscheidung 16).
+NACHWEISE = ("AI-SmartCon-Zertifikat", "Teilnahmebestätigung")
+
 
 class KursFehler(ValueError):
     """Eingabe oder Zustand passt nicht. Die Meldung ist für die Oberfläche."""
@@ -45,6 +52,13 @@ def _slug_normalisieren(slug: str) -> str:
     return sauber
 
 
+def _nachweis_pruefen(felder: dict) -> None:
+    """Lässt nur die beiden zulässigen Bezeichnungen durch."""
+    if "nachweis" in felder and felder["nachweis"] not in NACHWEISE:
+        raise KursFehler(
+            "Nachweis muss „" + "“ oder „".join(NACHWEISE) + "“ sein")
+
+
 def anlegen(slug: str, titel: str, **felder) -> int:
     """Legt einen Kurs an und gibt seine id zurück."""
     slug = _slug_normalisieren(slug)
@@ -55,6 +69,7 @@ def anlegen(slug: str, titel: str, **felder) -> int:
     unbekannt = set(felder) - set(FELDER)
     if unbekannt:
         raise KursFehler(f"Unbekannte Felder: {', '.join(sorted(unbekannt))}")
+    _nachweis_pruefen(felder)
 
     spalten = ["slug", "titel"] + list(felder.keys())
     werte = [slug, titel] + list(felder.values())
@@ -78,6 +93,7 @@ def aendern(kurs_id: int, **felder) -> None:
     unbekannt = set(felder) - set(FELDER)
     if unbekannt:
         raise KursFehler(f"Unbekannte Felder: {', '.join(sorted(unbekannt))}")
+    _nachweis_pruefen(felder)
     if not felder:
         return
 

@@ -6,7 +6,7 @@
 <title>SmartCon-Schulungen</title>
 <!-- ?v= bei jeder Frontend-Änderung hochzählen — sonst hängt auf dem Handy
      die alte Fassung im Cache und der Fix ist unsichtbar. -->
-<link rel="stylesheet" href="/static/style.css?v=12">
+<link rel="stylesheet" href="/static/style.css?v=13">
 </head>
 <body>
 <header>
@@ -319,6 +319,14 @@
       <label>Schulung im Portal
         <select name="schulung_slug"><option value="">— keine —</option></select>
       </label>
+      <label>Nachweis
+        <select name="nachweis">
+          <option value="AI-SmartCon-Zertifikat">AI-SmartCon-Zertifikat (mit Prüfung)</option>
+          <option value="Teilnahmebestätigung">Teilnahmebestätigung (ohne Prüfung)</option>
+        </select>
+        <small>Steht als Überschrift auf dem gedruckten Nachweis. Nie „staatlich
+          anerkannt“, kein AZAV, kein Bildungsgutschein.</small>
+      </label>
       <div class="zeile">
         <button type="submit">Anlegen</button>
         <button type="button" id="btn-kurs-abbrechen">Abbrechen</button>
@@ -427,6 +435,6 @@
   für den tollen Skill
 </footer>
 
-<script src="/static/app.js?v=12"></script>
+<script src="/static/app.js?v=13"></script>
 </body>
 </html>
