@@ -11,7 +11,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import config, db
+from . import config, db, mail
 
 ROOT = Path(__file__).resolve().parent.parent
 TIMEOUT = 20
@@ -115,6 +115,24 @@ nur die Erreichbarkeit über GET <url>/models).
    faster-whisper-large-v3, Systran/faster-whisper-large-v3).
 
 Alle Werte stehen nur in der lokalen config.json (gitignored).""",
+    "mail": """\
+Mailversand über SMTP für Anmeldebestätigungen und Zugangsmails.
+
+Es gibt dafür kein Formular in den Einstellungen — die Werte werden von Hand
+in die config.json eingetragen (im Docker-Betrieb /app/config.json, per
+Bind-Mount die config.json im Projektordner).
+
+1. Diese Schlüssel setzen: smtp_host, smtp_port, smtp_user, smtp_passwort,
+   smtp_von (Absenderadresse), smtp_starttls. Port 465 nutzt SSL direkt,
+   jeder andere Port STARTTLS (abschaltbar über smtp_starttls).
+2. portal_url auf die öffentliche Adresse des Teilnehmer-Portals setzen —
+   sie steht in der Zugangsmail.
+3. Das Passwort steht nur in der gitignorierten config.json, nie im Repo.
+   Die App liest die Datei bei jedem Versand neu — kein Neustart nötig.
+
+Kein Verbindungstest hier — der würde bei jedem System-Check eine SMTP-
+Verbindung öffnen. Ob der Versand tatsächlich funktioniert, zeigt sich erst
+beim ersten Versand.""",
     "portal": """\
 Die Kursverwaltung legt ihre Daten in data/kurse.db ab — Teilnehmer, Zugänge
 und Prüfungsversuche.
@@ -330,5 +348,24 @@ def run_all(cfg: dict) -> list[dict]:
 
     # Kursverwaltung (optional — nur nötig, wenn das Portal genutzt wird)
     checks.append(_portal_check())
+
+    # Mailversand (optional — nur nötig für Anmeldebestätigungen/Zugangsmails)
+    smtp_host = cfg.get("smtp_host", "").strip()
+    smtp_von = cfg.get("smtp_von", "").strip()
+    mail_ok = mail.konfiguriert(cfg)
+    if mail_ok:
+        mail_detail = f"{smtp_host}, Absender {smtp_von}"
+    elif not smtp_host and not smtp_von:
+        mail_detail = "nicht eingerichtet"
+    elif not smtp_host:
+        mail_detail = "smtp_host fehlt"
+    else:
+        mail_detail = "smtp_von (Absender) fehlt"
+    checks.append({"id": "mail", "name": "Mailversand (SMTP)",
+                   "status": "ok" if mail_ok else "warn",
+                   "detail": mail_detail,
+                   "hint": "" if mail_ok
+                           else "nur nötig, wenn Anmeldebestätigungen verschickt werden",
+                   "anleitung": ANLEITUNG["mail"]})
 
     return checks

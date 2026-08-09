@@ -15,7 +15,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, curriculum, db, higgsfield, portal_routes, praesentation, preflight, projekte, prompts, pruefung, runner, verwaltung
+from . import anmeldung_routes, config, curriculum, db, higgsfield, portal_routes, praesentation, preflight, projekte, prompts, pruefung, runner, verwaltung
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / "static"
@@ -41,6 +41,7 @@ app = FastAPI(title="SmartCon-Schulungen", version="0.2.0", lifespan=_lifespan)
 
 app.include_router(verwaltung.router)
 app.include_router(portal_routes.router)
+app.include_router(anmeldung_routes.router)   # öffentlich, ohne Login
 
 
 @app.get("/api/preflight")
@@ -51,12 +52,14 @@ def api_preflight():
 
 @app.get("/api/config")
 def api_config_get():
-    return config.load()
+    # Geheimnisse gehen nur maskiert an den Browser. Das Formular schickt die
+    # Maske beim Speichern zurück, config.save() erkennt sie als „unverändert".
+    return config.maskiert(config.load())
 
 
 @app.post("/api/config")
 async def api_config_post(cfg: dict):
-    return config.save(cfg)
+    return config.maskiert(config.save(cfg))
 
 
 @app.post("/api/config/logo")

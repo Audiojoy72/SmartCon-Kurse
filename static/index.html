@@ -6,7 +6,7 @@
 <title>SmartCon-Schulungen</title>
 <!-- ?v= bei jeder Frontend-Änderung hochzählen — sonst hängt auf dem Handy
      die alte Fassung im Cache und der Fix ist unsichtbar. -->
-<link rel="stylesheet" href="/static/style.css?v=10">
+<link rel="stylesheet" href="/static/style.css?v=12">
 </head>
 <body>
 <header>
@@ -15,12 +15,24 @@
     <button id="tab-projekte" class="tab aktiv" data-tab="projekte">Projekte</button>
     <button id="tab-decks" class="tab" data-tab="decks">Präsentationen</button>
     <button id="tab-teilnehmer" class="tab" data-tab="teilnehmer">Teilnehmer</button>
+    <button id="tab-kurse" class="tab" data-tab="kurse">Kurse</button>
+    <button id="tab-anmeldungen" class="tab" data-tab="anmeldungen">Anmeldungen</button>
     <button id="tab-ampel" class="tab" data-tab="ampel">System-Check</button>
     <button id="tab-settings" class="tab" data-tab="settings">Einstellungen</button>
   </nav>
 </header>
 
 <main>
+  <div id="passwort-kasten" class="karte" hidden>
+    <p><strong>Passwort — jetzt notieren.</strong> Es wird nicht wieder
+      angezeigt; gespeichert ist nur der Hash.</p>
+    <p id="passwort-wert" class="passwort"></p>
+    <p id="passwort-fehler" class="muted"></p>
+    <div class="zeile">
+      <button type="button" id="btn-passwort-schliessen">Schließen</button>
+    </div>
+  </div>
+
   <section id="view-projekte" class="view aktiv">
     <!-- Projektliste -->
     <div id="pv-liste">
@@ -283,17 +295,49 @@
       </div>
     </form>
 
-    <div id="passwort-kasten" class="karte" hidden>
-      <p><strong>Passwort — jetzt notieren.</strong> Es wird nicht wieder
-        angezeigt; gespeichert ist nur der Hash.</p>
-      <p id="passwort-wert" class="passwort"></p>
-      <p id="passwort-fehler" class="muted"></p>
-      <div class="zeile">
-        <button type="button" id="btn-passwort-schliessen">Schließen</button>
-      </div>
-    </div>
-
     <div id="teilnehmer-liste"></div>
+  </section>
+
+  <section id="view-kurse" class="view">
+    <div class="view-kopf">
+      <h2>Kurse</h2>
+      <button id="btn-kurs-neu">Kurs anlegen</button>
+    </div>
+    <p class="muted">Die öffentliche Ansicht liegt unter <code>/anmeldung</code>.
+      Dort stehen nie Platzzahlen — hier schon, das ist die Innensicht.</p>
+
+    <form id="kurs-form" hidden>
+      <label>Kürzel für die Adresse <input name="slug" required
+        pattern="[a-z0-9][a-z0-9-]*" placeholder="ki-pflicht"></label>
+      <label>Titel <input name="titel" required></label>
+      <label>Format <input name="format" placeholder="E-Learning, 80–90 Min"></label>
+      <label>Beschreibung <textarea name="beschreibung" rows="3"></textarea></label>
+      <label>Preis in Euro <input name="preis_euro" type="number" min="0"
+        step="0.01" value="0"></label>
+      <label><input name="preis_pauschal" type="checkbox"> Gesamtpreis statt pro Person</label>
+      <label>Plätze <input name="plaetze" type="number" min="1" value="10"></label>
+      <label>Schulung im Portal
+        <select name="schulung_slug"><option value="">— keine —</option></select>
+      </label>
+      <div class="zeile">
+        <button type="submit">Anlegen</button>
+        <button type="button" id="btn-kurs-abbrechen">Abbrechen</button>
+        <span id="kurs-status" class="muted"></span>
+      </div>
+    </form>
+
+    <div id="kurse-liste"></div>
+  </section>
+
+  <section id="view-anmeldungen" class="view">
+    <div class="view-kopf">
+      <h2>Anmeldungen</h2>
+      <button id="btn-anmeldungen-neu-laden">Neu laden</button>
+    </div>
+    <p class="muted">Weg einer Anmeldung: <strong>neu</strong> → Rechnung raus →
+      <strong>bezahlt</strong> → „Zugang freischalten". Das Passwort wird einmal
+      angezeigt und geht zusätzlich per Mail an den Teilnehmer.</p>
+    <div id="anmeldungen-liste"></div>
   </section>
 
   <section id="view-ampel" class="view">
@@ -383,6 +427,6 @@
   für den tollen Skill
 </footer>
 
-<script src="/static/app.js?v=10"></script>
+<script src="/static/app.js?v=12"></script>
 </body>
 </html>

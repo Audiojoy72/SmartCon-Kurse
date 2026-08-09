@@ -16,7 +16,7 @@ FARBEN = {
     "akzent_hell": "#e0c274", "text": "#f6f1e8", "text_sekundaer": "#d8cdb4",
 }
 
-_STIL = f"""
+STIL = f"""
   * {{ box-sizing: border-box; }}
   body {{
     margin: 0; padding: 24px 16px; background: {FARBEN['hintergrund']};
@@ -80,7 +80,7 @@ def seite(titel: str, inhalt: str, teilnehmer: dict | None = None) -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{_html.escape(titel)} · AI-SmartCon</title>
-<style>{_STIL}</style>
+<style>{STIL}</style>
 </head>
 <body>
 <main>

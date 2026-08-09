@@ -32,3 +32,14 @@ def test_kaputte_datenbank_ist_ein_fehler(tmp_path, monkeypatch):
     kaputt.write_text("das ist keine SQLite-Datei")
     monkeypatch.setattr(db, "DB_PFAD", kaputt)
     assert _finde(preflight.run_all(config.DEFAULTS), "portal")["status"] == "fail"
+
+
+def test_die_mail_anleitung_verspricht_kein_formular(tmp_path, monkeypatch):
+    """Es gibt kein SMTP-Formular — die Anleitung muss auf config.json zeigen."""
+    monkeypatch.setattr(db, "DB_PFAD", tmp_path / "kurse.db")
+    anleitung = _finde(preflight.run_all(config.DEFAULTS), "mail")["anleitung"]
+    assert "Einstellungen eintragen" not in anleitung
+    assert "config.json" in anleitung
+    for schluessel in ("smtp_host", "smtp_port", "smtp_user", "smtp_passwort",
+                       "smtp_von", "smtp_starttls", "portal_url"):
+        assert schluessel in anleitung

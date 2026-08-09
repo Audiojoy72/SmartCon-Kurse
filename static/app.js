@@ -21,6 +21,8 @@ document.querySelectorAll(".tab").forEach((btn) => {
     if (btn.dataset.tab === "teilnehmer") {
       ladeTeilnehmer();
     }
+    if (btn.dataset.tab === "kurse") { ladeKurse(); }
+    if (btn.dataset.tab === "anmeldungen") { ladeAnmeldungen(); }
   });
 });
 
@@ -1058,3 +1060,196 @@ document.getElementById('teilnehmer-form').addEventListener('submit', async (e) 
   e.target.hidden = true;
   ladeTeilnehmer();
 });
+
+/* ---------- Kurse und Termine ---------- */
+
+function euro(cent) {
+  return (cent / 100).toLocaleString('de-DE',
+    { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function datumZeit(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? iso : d.toLocaleString('de-DE',
+    { day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit' });
+}
+
+async function ladeKurse() {
+  const antwort = await fetch('/api/verwaltung/kurse');
+  const ziel = document.getElementById('kurse-liste');
+  if (!antwort.ok) { ziel.innerHTML = '<p class="muted">Nicht lesbar.</p>'; return; }
+  const liste = (await antwort.json()).kurse;
+  if (!liste.length) {
+    ziel.innerHTML = '<p class="muted">Noch kein Kurs angelegt.</p>';
+  } else {
+    ziel.innerHTML = liste.map((k) => `
+      <div class="karte">
+        <strong>${esc(k.titel)}</strong>
+        <span class="muted">/anmeldung/${esc(k.slug)} · ${euro(k.preis_cent)} €
+          ${k.preis_pauschal ? 'gesamt' : 'pro Person'}</span>
+        <span class="badge">${k.aktiv ? 'ausgeschrieben' : 'nicht sichtbar'}</span>
+        <div class="tabelle-scroll"><table class="gate-tabelle">
+          <thead><tr><th>Termin</th><th>Belegt</th><th>Status</th><th></th></tr></thead>
+          <tbody>${k.termine.map((t) => `
+            <tr>
+              <td>${esc(datumZeit(t.beginn))}</td>
+              <td>${t.belegt}/${t.plaetze}</td>
+              <td>${esc(t.status)}</td>
+              <td><button data-absagen="${t.id}">absagen</button></td>
+            </tr>`).join('') || '<tr><td colspan="4">Noch keine Termine.</td></tr>'}
+          </tbody>
+        </table></div>
+        <div class="zeile">
+          <select data-wochentag="${k.id}">
+            ${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((tag, i) =>
+              `<option value="${i}">${tag}</option>`).join('')}
+          </select>
+          <input data-uhrzeit="${k.id}" type="time" value="09:00">
+          <input data-rhythmus="${k.id}" type="number" min="1" max="52" value="1"
+            title="alle N Wochen">
+          <button data-serie="${k.id}">Termine für 26 Wochen erzeugen</button>
+          <button data-sichtbar="${k.id}" data-aktiv="${k.aktiv ? 1 : 0}">
+            ${k.aktiv ? 'Nicht mehr ausschreiben' : 'Ausschreiben'}</button>
+        </div>
+      </div>`).join('');
+  }
+
+  ziel.querySelectorAll('[data-serie]').forEach((el) => {
+    el.addEventListener('click', async () => {
+      const kid = el.dataset.serie;
+      const a = await fetch(`/api/verwaltung/kurse/${kid}/serie`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          wochentag: Number(ziel.querySelector(`[data-wochentag="${kid}"]`).value),
+          uhrzeit: ziel.querySelector(`[data-uhrzeit="${kid}"]`).value,
+          rhythmus: Number(ziel.querySelector(`[data-rhythmus="${kid}"]`).value),
+          wochen: 26,
+        }),
+      });
+      if (!a.ok) zeigePasswort('', (await a.json()).detail);
+      ladeKurse();
+    });
+  });
+
+  ziel.querySelectorAll('[data-absagen]').forEach((el) => {
+    el.addEventListener('click', async () => {
+      await fetch(`/api/verwaltung/termine/${el.dataset.absagen}/status`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'abgesagt' }) });
+      ladeKurse();
+    });
+  });
+
+  ziel.querySelectorAll('[data-sichtbar]').forEach((el) => {
+    el.addEventListener('click', async () => {
+      await fetch(`/api/verwaltung/kurse/${el.dataset.sichtbar}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aktiv: el.dataset.aktiv !== '1' }) });
+      ladeKurse();
+    });
+  });
+
+  // Fertige Schulungen für das Auswahlfeld im Anlegen-Formular
+  const p = await fetch('/api/projekte');
+  const fertige = (await p.json()).projekte
+    .filter((x) => x.art !== 'praesentation' && x.phase === 'fertig');
+  document.querySelector('#kurs-form [name=schulung_slug]').innerHTML =
+    '<option value="">— keine —</option>' + fertige.map((x) =>
+      `<option value="${esc(x.slug)}">${esc(x.thema || x.slug)}</option>`).join('');
+}
+
+document.getElementById('btn-kurs-neu').addEventListener('click', () => {
+  document.getElementById('kurs-form').hidden = false;
+});
+document.getElementById('btn-kurs-abbrechen').addEventListener('click', () => {
+  document.getElementById('kurs-form').hidden = true;
+});
+document.getElementById('kurs-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const status = document.getElementById('kurs-status');
+  const f = new FormData(e.target);
+  const daten = {
+    slug: f.get('slug'), titel: f.get('titel'), format: f.get('format'),
+    beschreibung: f.get('beschreibung'),
+    // Cent statt Euro: Fließkomma-Preise werden irgendwann falsch gerundet.
+    preis_cent: Math.round(Number(f.get('preis_euro') || 0) * 100),
+    preis_pauschal: f.get('preis_pauschal') ? 1 : 0,
+    plaetze: Number(f.get('plaetze')),
+    schulung_slug: f.get('schulung_slug') || '',
+  };
+  const a = await fetch('/api/verwaltung/kurse', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(daten) });
+  const ergebnis = await a.json();
+  if (!a.ok) { status.textContent = `Fehler: ${ergebnis.detail}`; return; }
+  status.textContent = '';
+  e.target.reset();
+  e.target.hidden = true;
+  ladeKurse();
+});
+
+/* ---------- Anmeldungen ---------- */
+
+const ANMELDUNG_STATUS = ['neu', 'bestaetigt', 'bezahlt', 'storniert'];
+
+async function ladeAnmeldungen() {
+  const antwort = await fetch('/api/verwaltung/anmeldungen');
+  const ziel = document.getElementById('anmeldungen-liste');
+  if (!antwort.ok) { ziel.innerHTML = '<p class="muted">Nicht lesbar.</p>'; return; }
+  const liste = (await antwort.json()).anmeldungen;
+  if (!liste.length) {
+    ziel.innerHTML = '<p class="muted">Noch keine Anmeldung.</p>';
+    return;
+  }
+  ziel.innerHTML = liste.map((a) => `
+    <div class="karte">
+      <strong>${esc(a.name)}</strong> <span class="muted">${esc(a.email)}</span>
+      ${a.firma ? `<span class="muted"> · ${esc(a.firma)}</span>` : ''}
+      <span class="badge">${esc(a.status)}</span>
+      <p class="muted">${esc(a.kurs_titel)}${a.beginn ? ' · ' + esc(datumZeit(a.beginn)) : ' · ohne Termin'}</p>
+      ${a.termin_status && a.termin_status !== 'offen'
+        ? `<p class="warnhinweis">Termin ${a.termin_status === 'abgesagt' ? 'abgesagt' : 'geschlossen'} — vor dem Freischalten klären.</p>`
+        : ''}
+      ${a.nachricht ? `<p>${esc(a.nachricht)}</p>` : ''}
+      <div class="zeile">
+        <select data-status="${a.id}">
+          ${ANMELDUNG_STATUS.map((s) =>
+            `<option value="${s}"${s === a.status ? ' selected' : ''}>${s}</option>`).join('')}
+        </select>
+        <button data-status-setzen="${a.id}">Status setzen</button>
+        <button data-freigeben="${a.id}"${a.status === 'bezahlt' && !a.teilnehmer_id ? '' : ' disabled'}>
+          Zugang freischalten</button>
+        ${a.teilnehmer_id ? '<span class="muted">Zugang angelegt</span>' : ''}
+      </div>
+    </div>`).join('');
+
+  ziel.querySelectorAll('[data-status-setzen]').forEach((el) => {
+    el.addEventListener('click', async () => {
+      const aid = el.dataset.statusSetzen;
+      const a = await fetch(`/api/verwaltung/anmeldungen/${aid}/status`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: ziel.querySelector(`[data-status="${aid}"]`).value }) });
+      if (!a.ok) zeigePasswort('', (await a.json()).detail);
+      ladeAnmeldungen();
+    });
+  });
+
+  ziel.querySelectorAll('[data-freigeben]').forEach((el) => {
+    el.addEventListener('click', async () => {
+      const a = await fetch(
+        `/api/verwaltung/anmeldungen/${el.dataset.freigeben}/freischalten`,
+        { method: 'POST' });
+      const e = await a.json();
+      if (!a.ok) { zeigePasswort('', e.detail); return; }
+      // Einmalige Anzeige, wie beim Teilnehmer. Kein alert/prompt — ein modaler
+      // Dialog blockiert die Browser-Prüfung aus Task 8.
+      zeigePasswort(e.passwort, e.mail ? '' :
+        'Achtung: Die Zugangsmail ging nicht raus. Passwort selbst weitergeben.');
+      ladeAnmeldungen();
+    });
+  });
+}
+
+document.getElementById('btn-anmeldungen-neu-laden')
+  .addEventListener('click', ladeAnmeldungen);

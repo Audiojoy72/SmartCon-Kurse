@@ -26,7 +26,39 @@ DEFAULTS = {
     # Portal-Cookie nur über HTTPS senden. Für die Entwicklung über
     # http://localhost abschaltbar — im Betrieb bleibt es an.
     "portal_secure_cookie": True,
+    # Mailversand für Anmeldebestätigungen. Zugangsdaten leben nur hier.
+    "smtp_host": "",
+    "smtp_port": 587,
+    "smtp_user": "",
+    "smtp_passwort": "",
+    "smtp_von": "",
+    "smtp_starttls": True,
+    # Öffentliche Adresse des Portals, für die Zugangsmail.
+    "portal_url": "",
+    # Nur einschalten, wenn die App tatsächlich hinter dem Cloudflare-Tunnel
+    # steht: Dann zählt CF-Connecting-IP als Absender für die Anmeldebremse.
+    # Aus bedeutet, dass die Bremse an request.client.host hängt — nicht an
+    # einer Kopfzeile, die jeder Anrufer selbst setzen kann.
+    "proxy_kopf_vertrauen": False,
 }
+
+
+# Was nie im Klartext aus dem Backend herausgeht.
+GEHEIME_FELDER = ("whisper_api_key", "cf_access_client_secret", "smtp_passwort")
+# Steht in der Antwort anstelle eines gesetzten Geheimnisses. Kommt derselbe
+# Text beim Speichern zurück, heißt das „unverändert" — sonst würde das
+# Einstellungsformular, das die Felder befüllt und mitschickt, beim ersten
+# Klick auf „Speichern" die Maske als Geheimnis ablegen.
+MASKE = "••••••••"
+
+
+def maskiert(cfg: dict) -> dict:
+    """Kopie der Konfiguration, in der gesetzte Geheimnisse ersetzt sind."""
+    sichtbar = dict(cfg)
+    for feld in GEHEIME_FELDER:
+        if sichtbar.get(feld):
+            sichtbar[feld] = MASKE
+    return sichtbar
 
 
 def load() -> dict:
@@ -41,7 +73,15 @@ def load() -> dict:
 
 
 def save(cfg: dict) -> dict:
-    clean = {k: cfg.get(k, v) for k, v in DEFAULTS.items()}
+    # Fehlende Schlüssel kommen aus dem aktuellen Stand, nicht aus DEFAULTS:
+    # Das Einstellungsformular schickt nur die Felder, die es kennt — alles
+    # andere (z. B. die SMTP-Zugangsdaten) würde sonst beim Speichern
+    # stillschweigend auf den Standardwert zurückfallen.
+    aktuell = load()
+    clean = {k: cfg.get(k, aktuell.get(k, v)) for k, v in DEFAULTS.items()}
+    for feld in GEHEIME_FELDER:
+        if clean[feld] == MASKE:
+            clean[feld] = aktuell.get(feld, "")
     if clean["backend"] not in ("claude", "kimi"):
         clean["backend"] = "claude"
     if clean["whisper_modus"] not in ("lokal", "api"):
